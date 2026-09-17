@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="26" height="156" viewBox="0 0 26 156">
+  <!-- Ikat: the dye bleeds along the warp, so every edge is feathered.
+       Three stacked motifs make one repeating tile. -->
+  <g fill="none" stroke-width="1.1" opacity=".85">
+    <path stroke="#c84b31" d="M13 3 L17 9 L16 13 L21 19 L20 24 L24 27 L20 30 L21 35 L16 41 L17 45 L13 51
+                              L9 45 L10 41 L5 35 L6 30 L2 27 L6 24 L5 19 L10 13 L9 9 Z"/>
+    <path stroke="#d4a373" d="M13 55 L17 61 L16 65 L21 71 L20 76 L24 79 L20 82 L21 87 L16 93 L17 97 L13 103
+                              L9 97 L10 93 L5 87 L6 82 L2 79 L6 76 L5 71 L10 65 L9 61 Z"/>
+    <path stroke="#0f2c59" d="M13 107 L17 113 L16 117 L21 123 L20 128 L24 131 L20 134 L21 139 L16 145 L17 149 L13 155
+                              L9 149 L10 145 L5 139 L6 134 L2 131 L6 128 L5 123 L10 117 L9 113 Z"/>
+    <path stroke="#d4a373" stroke-width=".7" opacity=".6" d="M1 0 V156 M25 0 V156"/>
+  </g>
+</svg>

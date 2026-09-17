@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Moderation queue — Qurama</title>
+<link rel="icon" href="/assets/img/logo.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/style.css">
+<style>
+  .admin-head { display:flex; align-items:center; gap:1rem; padding:1rem 0; border-bottom:1px solid var(--line); margin-bottom:2rem; }
+  .admin-head h1 { font-size:1.35rem; margin:0; margin-right:auto; }
+  .sub { border:1px solid var(--line); border-radius:var(--radius); background:var(--paper); margin-bottom:1rem; overflow:hidden; }
+  .sub__bar { display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; padding:1rem 1.25rem; cursor:pointer; }
+  .sub__bar h3 { margin:0; font-size:1rem; margin-right:auto; }
+  .sub__body { padding:0 1.25rem 1.25rem; border-top:1px solid var(--line); }
+  .sub__meta { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:.5rem 1.5rem; font-size:.88rem; margin:1rem 0; }
+  .sub__meta dt { color:var(--ink-3); font-size:.74rem; letter-spacing:.1em; text-transform:uppercase; }
+  .sub__meta dd { margin:0 0 .5rem; }
+  .preview { max-height:340px; overflow:auto; border:1px solid var(--line); border-radius:10px; padding:1rem 1.25rem; background:var(--paper-2); font-size:.94rem; }
+  .preview h2,.preview h3,.preview h4 { font-size:1.05rem; margin-top:1rem; }
+  .status { font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; font-weight:700; padding:.2rem .5rem; border-radius:6px; }
+  .status--pending{background:color-mix(in srgb,var(--saffron) 22%,transparent);color:var(--ink);}
+  .status--published{background:color-mix(in srgb,var(--turquoise) 20%,transparent);color:var(--ink);}
+  .status--held{background:var(--paper-3);color:var(--ink-2);}
+  .two { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:1rem; }
+  .danger { color:#fff; background:var(--pomegranate); }
+  .msg { padding:.75rem 1rem; border-radius:10px; margin-bottom:1rem; font-size:.9rem; }
+  .msg--err { background:color-mix(in srgb,var(--pomegranate) 15%,transparent); border:1px solid color-mix(in srgb,var(--pomegranate) 35%,transparent); }
+  .msg--ok  { background:color-mix(in srgb,var(--turquoise) 15%,transparent); border:1px solid color-mix(in srgb,var(--turquoise) 35%,transparent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="admin-head">
+    <img src="/assets/img/logo.svg" alt="" width="30" height="30">
+    <h1>Moderation queue</h1>
+    <a class="btn btn--ghost" href="/" target="_blank" rel="noopener">View site</a>
+    <button class="btn btn--ghost" id="signout" hidden>Sign out</button>
+  </div>
+
+  <div id="msg"></div>
+
+  <section id="login" hidden>
+    <p class="lede">This page is private. Nothing a contributor sends appears on the site until it is approved here.</p>
+    <form class="form" id="login-form">
+      <div class="field">
+        <label for="pw">Moderator password</label>
+        <input id="pw" type="password" autocomplete="current-password" required>
+      </div>
+      <div><button class="btn btn--primary" type="submit">Sign in</button></div>
+    </form>
+  </section>
+
+  <section id="queue" hidden>
+    <p class="results-count" id="count"></p>
+    <div id="list"></div>
+  </section>
+
+</div>
+
+<script>
+const $ = function (s, r) { return (r || document).querySelector(s); };
+let CSRF = null, DATA = null;
+
+function show(kind, text) {
+  $("#msg").innerHTML = '<div class="msg msg--' + kind + '">' + esc(text) + "</div>";
+  setTimeout(function () { $("#msg").innerHTML = ""; }, 6000);
+}
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+async function api(url, options) {
+  const opts = Object.assign({ headers: {} }, options || {});
+  if (opts.body) opts.headers["Content-Type"] = "application/json";
+  if (CSRF) opts.headers["X-Qurama-CSRF"] = CSRF;
+  const res = await fetch(url, opts);
+  return res.json();
+}
+
+async function boot() {
+  const s = await api("/api/admin/session");
+  if (!s.configured) {
+    $("#login").hidden = false;
+    show("err", "No moderator password is set yet. Run  npm run set-password  and reload.");
+    $("#login-form").hidden = true;
+    return;
+  }
+  if (s.signedIn) { CSRF = s.csrf; await load(); }
+  else $("#login").hidden = false;
+}
+
+$("#login-form").addEventListener("submit", async function (e) {
+  e.preventDefault();
+  const r = await api("/api/admin/login", { method: "POST", body: JSON.stringify({ password: $("#pw").value }) });
+  if (!r.ok) return show("err", r.error === "wrong_password" ? "That password is not right." : "Could not sign in.");
+  CSRF = r.csrf; $("#pw").value = ""; $("#login").hidden = true;
+  await load();
+});
+
+$("#signout").addEventListener("click", async function () {
+  await api("/api/admin/logout", { method: "POST" });
+  location.reload();
+});
+
+async function load() {
+  const r = await api("/api/admin/submissions");
+  if (!r.ok) { $("#login").hidden = false; return; }
+  DATA = r;
+  $("#queue").hidden = false;
+  $("#signout").hidden = false;
+  const pending = r.submissions.filter(function (s) { return s.status === "pending"; }).length;
+  $("#count").textContent = r.submissions.length + " submissions · " + pending + " waiting for review";
+  $("#list").innerHTML = r.submissions.map(card).join("") || '<div class="empty-state">Nothing has been submitted yet.</div>';
+}
+
+function card(s) {
+  const country = (DATA.countries.find(function (c) { return c.code === s.meta.country; }) || {}).en || "—";
+  return '<article class="sub" data-id="' + s.id + '">' +
+    '<div class="sub__bar" onclick="this.nextElementSibling.hidden=!this.nextElementSibling.hidden">' +
+      '<span class="status status--' + s.status + '">' + s.status + "</span>" +
+      "<h3>" + esc(s.meta.name || "Anonymous") + " · " + esc(country) + "</h3>" +
+      '<span style="font-size:.8rem;color:var(--ink-3)">' + esc(s.createdAt.slice(0, 10)) +
+        (s.words ? " · " + s.words + " words" : " · no file") + "</span>" +
+    "</div>" +
+    '<div class="sub__body" hidden>' + body(s) + "</div></article>";
+}
+
+function body(s) {
+  const opts = function (list, sel, labelKey) {
+    return list.map(function (o) {
+      const v = labelKey ? o.code : o;
+      const l = labelKey ? o[labelKey] : o;
+      return '<option value="' + esc(v) + '"' + (v === sel ? " selected" : "") + ">" + esc(l) + "</option>";
+    }).join("");
+  };
+  return "<dl class=\"sub__meta\">" +
+      "<div><dt>Contact</dt><dd>" + esc(s.meta.email || "not given") + "</dd></div>" +
+      "<div><dt>Language</dt><dd>" + esc(s.meta.language || "—") + "</dd></div>" +
+      "<div><dt>Original file</dt><dd>" + (s.file
+        ? '<a href="/api/admin/submissions/' + s.id + '/file">' + esc(s.file.originalName) + "</a>"
+        : "none") + "</dd></div>" +
+      (s.meta.note ? "<div style=\"grid-column:1/-1\"><dt>Their note</dt><dd>" + esc(s.meta.note) + "</dd></div>" : "") +
+    "</dl>" +
+    (s.warnings && s.warnings.length
+      ? '<p class="note" style="margin-bottom:1rem">Conversion notes: ' + esc(s.warnings.join("; ")) + "</p>" : "") +
+    (s.html ? '<div class="preview">' + s.html + "</div>" : "") +
+    '<form class="form" style="max-width:none;margin-top:1.25rem" onsubmit="return publish(event,\'' + s.id + '\')">' +
+      '<div class="two">' +
+        '<div class="field"><label>Title (English)</label><input name="titleEn" required></div>' +
+        '<div class="field"><label>Title (Uzbek)</label><input name="titleUz"></div>' +
+      "</div>" +
+      '<div class="two">' +
+        '<div class="field"><label>Teaser (English)</label><textarea name="teaserEn" style="min-height:70px"></textarea></div>' +
+        '<div class="field"><label>Teaser (Uzbek)</label><textarea name="teaserUz" style="min-height:70px"></textarea></div>' +
+      "</div>" +
+      '<div class="two">' +
+        '<div class="field"><label>Country</label><select name="country">' + opts(DATA.countries, s.meta.country, "en") + "</select></div>" +
+        '<div class="field"><label>Theme</label><select name="theme">' + opts(DATA.themes, "identity") + "</select></div>" +
+        '<div class="field"><label>Byline</label><input name="byline" placeholder="Leave empty to publish anonymously"></div>' +
+      "</div>" +
+      '<label class="checkline"><input type="checkbox" name="noindex"><span>Keep out of search engines (adds noindex to the page)</span></label>' +
+      '<div class="btn-row">' +
+        '<button class="btn btn--primary" type="submit">' + (s.status === "published" ? "Re-publish" : "Publish") + "</button>" +
+        (s.status === "published"
+          ? '<button class="btn btn--ghost" type="button" onclick="act(\'' + s.id + '\',\'unpublish\')">Take down</button>'
+          : '<button class="btn btn--ghost" type="button" onclick="act(\'' + s.id + '\',\'hold\')">Hold</button>') +
+        '<button class="btn danger" type="button" onclick="wipe(\'' + s.id + '\')">Delete permanently</button>' +
+      "</div>" +
+    "</form>";
+}
+
+async function publish(e, id) {
+  e.preventDefault();
+  const f = e.target;
+  const payload = {
+    titleEn: f.titleEn.value, titleUz: f.titleUz.value,
+    teaserEn: f.teaserEn.value, teaserUz: f.teaserUz.value,
+    country: f.country.value, theme: f.theme.value,
+    byline: f.byline.value, noindex: f.noindex.checked,
+  };
+  const r = await api("/api/admin/submissions/" + id + "/publish", { method: "POST", body: JSON.stringify(payload) });
+  if (!r.ok) show("err", "Could not publish: " + r.error);
+  else { show("ok", "Published at /" + r.entry.url); await load(); }
+  return false;
+}
+
+async function act(id, what) {
+  const r = await api("/api/admin/submissions/" + id + "/" + what, { method: "POST" });
+  if (!r.ok) show("err", "Failed: " + r.error); else await load();
+}
+
+async function wipe(id) {
+  if (!confirm("Delete this submission, its uploaded file and any published page? This cannot be undone.")) return;
+  const r = await api("/api/admin/submissions/" + id, { method: "DELETE" });
+  if (!r.ok) show("err", "Failed: " + r.error);
+  else { show("ok", "Deleted."); await load(); }
+}
+
+boot();
+</script>
+</body>
+</html>

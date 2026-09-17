@@ -1,0 +1,5 @@
+node_modules/
+# Never commit this: it holds contributors' uploaded files, their contact
+# details and the admin password hash.
+data/
+.DS_Store

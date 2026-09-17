@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Qurama mark: a pieced patchwork square">
+  <defs><clipPath id="q"><rect x="3" y="3" width="58" height="58" rx="9"/></clipPath></defs>
+  <g clip-path="url(#q)">
+    <rect x="3" y="3" width="58" height="58" fill="#fbf7f0"/>
+    <!-- six strips, one per country of origin, pieced on the diagonal -->
+    <g transform="rotate(-45 32 32)">
+      <rect x="-22" y="-8"   width="108" height="12.6" fill="#c0442e"/>
+      <rect x="-22" y="5.3"  width="108" height="12.6" fill="#2c5f8a"/>
+      <rect x="-22" y="18.7" width="108" height="12.6" fill="#3e7059"/>
+      <rect x="-22" y="32"   width="108" height="12.6" fill="#0f2c59"/>
+      <rect x="-22" y="45.3" width="108" height="12.6" fill="#9c5b2b"/>
+      <rect x="-22" y="58.7" width="108" height="12.6" fill="#5b7a3c"/>
+    </g>
+    <!-- Canada, at the centre of the cloth -->
+    <rect x="22" y="22" width="20" height="20" transform="rotate(45 32 32)"
+          fill="#a32e2e" stroke="#fbf7f0" stroke-width="2.5"/>
+  </g>
+  <rect x="3" y="3" width="58" height="58" rx="9" fill="none" stroke="#14223a" stroke-opacity=".2" stroke-width="1.5"/>
+</svg>
