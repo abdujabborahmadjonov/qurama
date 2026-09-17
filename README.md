@@ -65,8 +65,10 @@ Then:
    Nobody should be able to create an account in this project but you.
 3. **Authentication → Users → Add user** → your email and a strong password,
    with "Auto Confirm User" ticked. This is your moderator login.
-4. **Project Settings → API** → copy the project URL, the `anon` key and the
-   `service_role` key.
+4. **Settings → API Keys** → copy the project URL, the **publishable** key and
+   the **secret** key. The secret key bypasses row level security, so it goes
+   only into your host's environment settings — never into the repository, an
+   issue, or a chat window.
 
 ### 2. Local
 
@@ -97,10 +99,15 @@ Set the same four environment variables either way:
 
 | Variable | Value |
 |---|---|
-| `SUPABASE_URL` | your project URL |
-| `SUPABASE_ANON_KEY` | the `anon` key — public by design |
-| `SUPABASE_SERVICE_ROLE_KEY` | the `service_role` key — **server only, never commit** |
+| `SUPABASE_URL` | the project origin only, e.g. `https://abcdefgh.supabase.co` — no `/rest/v1` |
+| `SUPABASE_PUBLISHABLE_KEY` | Settings → API Keys → **publishable** (`sb_publishable_…`). Public by design. |
+| `SUPABASE_SECRET_KEY` | Settings → API Keys → **secret** (`sb_secret_…`). **Server only, never commit.** |
 | `QURAMA_MODERATORS` | your email address, comma-separated if more than one |
+
+Supabase renamed these keys in 2025: **publishable** was `anon`, **secret** was
+`service_role`. Both the new `sb_*` keys and the old `eyJ…` JWT ones work, and
+the app accepts either variable name — `SUPABASE_ANON_KEY` and
+`SUPABASE_SERVICE_ROLE_KEY` are still read.
 
 ### Livops (livops.uz)
 
@@ -169,7 +176,7 @@ through that form.
   archive if you stop running it. Contributors are trusting the project, not a
   person.
 - Turn on Supabase's automatic backups.
-- If the `service_role` key is ever exposed, rotate it in Project Settings → API.
+- If the secret key is ever exposed, rotate it in Settings → API Keys immediately.
 
 ## A choice you should know about
 

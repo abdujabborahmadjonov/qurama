@@ -11,9 +11,13 @@
 
 const { createClient } = require("@supabase/supabase-js");
 
-const URL = process.env.SUPABASE_URL || "";
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
+/* Supabase renamed its keys in 2025: "anon" became "publishable"
+   (sb_publishable_...) and "service_role" became "secret" (sb_secret_...).
+   Both the old JWT keys and the new ones work, so accept either variable name
+   rather than making the deployer guess which vocabulary this app speaks. */
+const URL = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || "";
+const ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "";
 
 const BUCKET = "essays";
 
