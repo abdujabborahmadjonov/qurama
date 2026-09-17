@@ -34,6 +34,7 @@ site/
   assets/js/data.js      placeholder entries, shown only until real ones exist
   assets/js/main.js      language switch, filtering, reading aids, uploads
   assets/img/country/    original ornament, one motif per country
+  assets/img/flags/      national flags from Wikimedia Commons (public domain)
 server/
   app.js              the application
   index.js            long-lived entry point (Livops, VPS, local)
@@ -168,6 +169,13 @@ through that form.
   person.
 - Turn on Supabase's automatic backups.
 - If the `service_role` key is ever exposed, rotate it in Project Settings → API.
+
+## A choice you should know about
+
+The Afghanistan flag on the site is the **2013–2021 tricolour**, not the flag of
+the government in place since August 2021. That is the flag most of the diaspora
+uses, including many of the women this archive is for. It is a political choice
+and it is reversible in one file — see `site/assets/img/flags/CREDITS.md`.
 
 ## Still to do
 

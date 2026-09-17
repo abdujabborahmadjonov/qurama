@@ -174,7 +174,11 @@
     parts.push("<p>" + copy.teaser + "</p>");
 
     const meta = [];
-    if (item.country) meta.push('<span class="tag">' + countryName(item.country, lang) + "</span>");
+    if (item.country) {
+      meta.push('<span class="tag"><img class="flag" src="' + prefix() +
+                "assets/img/flags/" + item.country + '.svg" alt="" height="16">' +
+                countryName(item.country, lang) + "</span>");
+    }
     if (item.format)  meta.push('<span class="tag tag--flag">' + t("format." + item.format, lang) + "</span>");
     if (item.theme)   meta.push('<span class="tag tag--flag">' + t("theme." + item.theme, lang) + "</span>");
     if (meta.length)  parts.push('<div class="card__meta">' + meta.join("") + "</div>");

@@ -458,3 +458,25 @@ blockquote.pull {
 /* ---------- editorial: related stories ---------- */
 .related { border-top: 1px solid var(--line); margin-top: 3.5rem; padding-top: 2.5rem; }
 .related h2 { font-size: 1.25rem; }
+
+
+/* ---------- flags ----------
+   Used for identification — map tiles, country tags, the archive rail. The
+   ornament motifs stay for decoration, where a flag would be the wrong register.
+   Drawn by tools/make-flags.py; regenerate rather than editing the SVGs. */
+.flag {
+  display: inline-block; flex: none;
+  /* Fixed height, natural width. These flags run from 2:1 (Uzbekistan) to 2:3
+     (Turkmenistan); forcing them into one box and cropping would cut the
+     hoist-side emblems clean off. */
+  height: 16px; width: auto; border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(20, 34, 58, .22);
+  vertical-align: -3px;
+  /* inside a column flexbox the default `stretch` would pull these to the full
+     width of the tile, squashing the proportions back out of shape */
+  align-self: flex-start;
+}
+@media (prefers-color-scheme: dark) { .flag { box-shadow: 0 0 0 1px rgba(255, 255, 255, .28); } }
+.flag--lg { height: 26px; width: auto; border-radius: 3px; }
+.mapboard__tile .flag { margin-bottom: .5rem; }
+.tag .flag { margin-right: .1rem; }
