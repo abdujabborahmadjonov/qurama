@@ -2,16 +2,20 @@
   "name": "qurama",
   "version": "0.1.0",
   "private": true,
-  "description": "Qurama — a digital archive of Central Asian immigrant women's stories in Canada",
+  "description": "Qurama \u2014 a digital archive of Central Asian immigrant women's stories in Canada",
   "type": "commonjs",
   "scripts": {
-    "start": "node server/index.js",
-    "set-password": "node server/set-password.js"
+    "start": "node --env-file-if-exists=.env server/index.js",
+    "dev": "node --env-file-if-exists=.env server/index.js",
+    "test": "node test/run.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
     "express": "^5.1.0",
     "mammoth": "^1.11.0",
     "multer": "^2.0.2"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }

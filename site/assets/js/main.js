@@ -82,16 +82,73 @@
 
   /* ---------------- cards ---------------- */
 
-  // Real published essays take over from the placeholder seed automatically.
+  /* ---------------- the archive ----------------
+     Published stories are read straight from Supabase with the public anon
+     key. Row level security allows exactly one thing through that key — select
+     on `entries` — so no contributor detail is reachable from a browser.
+     Until they load (or if Supabase is unreachable) the placeholder seed in
+     data.js is shown instead. */
+
+  let ENTRIES = null;
+
   function archive() {
-    if (typeof PUBLISHED_ENTRIES !== "undefined" && PUBLISHED_ENTRIES.length) return PUBLISHED_ENTRIES;
+    if (ENTRIES && ENTRIES.length) return ENTRIES;
     return typeof STORIES !== "undefined" ? STORIES : [];
+  }
+
+  function published() {
+    return Boolean(ENTRIES && ENTRIES.length);
+  }
+
+  // Redraw hooks fire on a language change and when the archive arrives.
+  function onRedraw(fn) {
+    document.addEventListener("langchange", fn);
+    document.addEventListener("archiveloaded", fn);
+  }
+
+  function rowToEntry(row) {
+    return {
+      id: row.id,
+      url: "essays/" + row.slug,
+      country: row.country,
+      theme: row.theme,
+      format: row.format || "text",
+      byline: row.byline || "",
+      publishedAt: row.published_at,
+      en: { title: row.title_en, teaser: row.teaser_en || "" },
+      uz: { title: row.title_uz || row.title_en, teaser: row.teaser_uz || row.teaser_en || "" },
+    };
+  }
+
+  async function loadArchive() {
+    const cfg = window.QURAMA_CONFIG || {};
+    if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) return;
+
+    const columns = "id,slug,country,theme,format,byline,published_at," +
+                    "title_en,teaser_en,title_uz,teaser_uz";
+    const url = cfg.supabaseUrl.replace(/\/+$/, "") +
+                "/rest/v1/entries?select=" + columns + "&order=published_at.desc";
+    try {
+      const res = await fetch(url, {
+        headers: {
+          apikey: cfg.supabaseAnonKey,
+          Authorization: "Bearer " + cfg.supabaseAnonKey,
+        },
+      });
+      if (!res.ok) return;
+      const rows = await res.json();
+      if (!Array.isArray(rows) || !rows.length) return;
+      ENTRIES = rows.map(rowToEntry);
+      syncPlaceholderNotices();
+      document.dispatchEvent(new CustomEvent("archiveloaded"));
+    } catch (_) {
+      // Offline, or the project is not reachable. Placeholders stay.
+    }
   }
 
   // Notices that only apply while the archive is still showing placeholders.
   function syncPlaceholderNotices() {
-    const real = typeof PUBLISHED_ENTRIES !== "undefined" && PUBLISHED_ENTRIES.length > 0;
-    document.querySelectorAll(".only-placeholders").forEach(function (el) { el.hidden = real; });
+    document.querySelectorAll(".only-placeholders").forEach(function (el) { el.hidden = published(); });
   }
 
   function countryName(code, lang) {
@@ -177,7 +234,7 @@
       });
     });
 
-    document.addEventListener("langchange", draw);
+    onRedraw(draw);
     draw();
   }
 
@@ -193,7 +250,7 @@
       const el = document.getElementById(b.id);
       if (!el) return;
       const draw = function () { renderList(el, b.data(), document.documentElement.lang || DEFAULT_LANG); };
-      document.addEventListener("langchange", draw);
+      onRedraw(draw);
       draw();
     });
   }
@@ -268,7 +325,7 @@
           "</div></a>";
     }
 
-    document.addEventListener("langchange", draw);
+    onRedraw(draw);
     draw();
   }
 
@@ -342,7 +399,7 @@
         related.parentElement.hidden = ranked.length === 0;
         renderList(related, ranked, lang);
       };
-      document.addEventListener("langchange", drawRelated);
+      onRedraw(drawRelated);
       drawRelated();
     }
   }
@@ -358,5 +415,6 @@
     initFeatured();
     initEssay();
     initForm();
+    loadArchive();
   });
 })();

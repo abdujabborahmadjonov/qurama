@@ -47,7 +47,11 @@
     <p class="lede">This page is private. Nothing a contributor sends appears on the site until it is approved here.</p>
     <form class="form" id="login-form">
       <div class="field">
-        <label for="pw">Moderator password</label>
+        <label for="em">Email</label>
+        <input id="em" type="email" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="pw">Password</label>
         <input id="pw" type="password" autocomplete="current-password" required>
       </div>
       <div><button class="btn btn--primary" type="submit">Sign in</button></div>
@@ -63,11 +67,11 @@
 
 <script>
 const $ = function (s, r) { return (r || document).querySelector(s); };
-let CSRF = null, DATA = null;
+let TOKEN = null, CFG = null, DATA = null;
 
 function show(kind, text) {
   $("#msg").innerHTML = '<div class="msg msg--' + kind + '">' + esc(text) + "</div>";
-  setTimeout(function () { $("#msg").innerHTML = ""; }, 6000);
+  setTimeout(function () { $("#msg").innerHTML = ""; }, 7000);
 }
 function esc(s) {
   return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -77,39 +81,73 @@ function esc(s) {
 async function api(url, options) {
   const opts = Object.assign({ headers: {} }, options || {});
   if (opts.body) opts.headers["Content-Type"] = "application/json";
-  if (CSRF) opts.headers["X-Qurama-CSRF"] = CSRF;
+  if (TOKEN) opts.headers["Authorization"] = "Bearer " + TOKEN;
   const res = await fetch(url, opts);
-  return res.json();
+  try { return await res.json(); } catch (_) { return { ok: false, error: "bad_response" }; }
+}
+
+/* The token is kept in sessionStorage, not localStorage: closing the tab ends
+   the moderating session, which is the right default for a page that shows
+   contributors' contact details. */
+function saveToken(t) {
+  TOKEN = t;
+  try { t ? sessionStorage.setItem("qurama.token", t) : sessionStorage.removeItem("qurama.token"); }
+  catch (_) { /* private mode */ }
 }
 
 async function boot() {
-  const s = await api("/api/admin/session");
-  if (!s.configured) {
+  CFG = await api("/api/config");
+  try { TOKEN = sessionStorage.getItem("qurama.token"); } catch (_) { TOKEN = null; }
+
+  if (!CFG.supabaseUrl || !CFG.supabaseAnonKey) {
     $("#login").hidden = false;
-    show("err", "No moderator password is set yet. Run  npm run set-password  and reload.");
     $("#login-form").hidden = true;
-    return;
+    return show("err", "Supabase is not configured on the server. Set SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY, then reload.");
   }
-  if (s.signedIn) { CSRF = s.csrf; await load(); }
-  else $("#login").hidden = false;
+  if (!CFG.configured) {
+    $("#login").hidden = false;
+    $("#login-form").hidden = true;
+    return show("err", "QURAMA_MODERATORS is empty, so no account is allowed to moderate. Add your email address to it and reload.");
+  }
+  if (TOKEN) {
+    const s = await api("/api/admin/session");
+    if (s.signedIn) return load();
+    saveToken(null);
+  }
+  $("#login").hidden = false;
 }
 
 $("#login-form").addEventListener("submit", async function (e) {
   e.preventDefault();
-  const r = await api("/api/admin/login", { method: "POST", body: JSON.stringify({ password: $("#pw").value }) });
-  if (!r.ok) return show("err", r.error === "wrong_password" ? "That password is not right." : "Could not sign in.");
-  CSRF = r.csrf; $("#pw").value = ""; $("#login").hidden = true;
+  const res = await fetch(CFG.supabaseUrl.replace(/\/+$/, "") + "/auth/v1/token?grant_type=password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: CFG.supabaseAnonKey },
+    body: JSON.stringify({ email: $("#em").value, password: $("#pw").value }),
+  });
+  const out = await res.json().catch(function () { return {}; });
+  if (!res.ok || !out.access_token) {
+    return show("err", out.error_description || out.msg || "That email and password did not work.");
+  }
+  saveToken(out.access_token);
+  $("#pw").value = "";
+
+  const s = await api("/api/admin/session");
+  if (!s.signedIn) {
+    saveToken(null);
+    return show("err", "That account signed in, but it is not on the moderator list.");
+  }
+  $("#login").hidden = true;
   await load();
 });
 
-$("#signout").addEventListener("click", async function () {
-  await api("/api/admin/logout", { method: "POST" });
+$("#signout").addEventListener("click", function () {
+  saveToken(null);
   location.reload();
 });
 
 async function load() {
   const r = await api("/api/admin/submissions");
-  if (!r.ok) { $("#login").hidden = false; return; }
+  if (!r.ok) { saveToken(null); $("#login").hidden = false; return show("err", "Session expired \u2014 please sign in again."); }
   DATA = r;
   $("#queue").hidden = false;
   $("#signout").hidden = false;
@@ -142,7 +180,7 @@ function body(s) {
       "<div><dt>Contact</dt><dd>" + esc(s.meta.email || "not given") + "</dd></div>" +
       "<div><dt>Language</dt><dd>" + esc(s.meta.language || "—") + "</dd></div>" +
       "<div><dt>Original file</dt><dd>" + (s.file
-        ? '<a href="/api/admin/submissions/' + s.id + '/file">' + esc(s.file.originalName) + "</a>"
+        ? '<a href="#" onclick="return getFile(\'' + s.id + '\')">' + esc(s.file.originalName) + "</a>"
         : "none") + "</dd></div>" +
       (s.meta.note ? "<div style=\"grid-column:1/-1\"><dt>Their note</dt><dd>" + esc(s.meta.note) + "</dd></div>" : "") +
     "</dl>" +
@@ -192,6 +230,13 @@ async function publish(e, id) {
 async function act(id, what) {
   const r = await api("/api/admin/submissions/" + id + "/" + what, { method: "POST" });
   if (!r.ok) show("err", "Failed: " + r.error); else await load();
+}
+
+async function getFile(id) {
+  const r = await api("/api/admin/submissions/" + id + "/file");
+  if (r.ok && r.url) window.open(r.url, "_blank", "noopener");
+  else show("err", "Could not produce a download link.");
+  return false;
 }
 
 async function wipe(id) {

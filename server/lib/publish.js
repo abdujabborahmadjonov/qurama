@@ -1,23 +1,8 @@
 "use strict";
-/* Turning an approved submission into pages on the site.
+/* Approving a submission, and taking one down again. */
 
-   Two outputs:
-     site/essays/<slug>.html          the essay itself
-     site/assets/js/entries.js        the archive index the front end reads
-
-   The header and footer are lifted from site/index.html at publish time, so
-   editing the nav in one place still updates every published essay. */
-
-const fs = require("fs");
-const path = require("path");
-const { SITE, ESSAYS, ENTRIES_JS } = require("./paths");
-const countries = require("./countries");
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, function (c) {
-    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
-  });
-}
+const { admin } = require("./supabase");
+const store = require("./store");
 
 function slugify(title) {
   const base = String(title)
@@ -30,142 +15,63 @@ function slugify(title) {
   return base || "essay";
 }
 
-function uniqueSlug(title, taken) {
+async function uniqueSlug(title, ownId) {
   const base = slugify(title);
-  let slug = base;
+  const { data, error } = await admin().from("entries").select("slug, id").like("slug", base + "%");
+  if (error) throw error;
+  const taken = new Set((data || [])
+    .filter(function (r) { return r.id !== ownId; })
+    .map(function (r) { return r.slug; }));
+  if (!taken.has(base)) return base;
   let n = 2;
-  while (taken.has(slug)) { slug = base + "-" + n; n += 1; }
-  return slug;
+  while (taken.has(base + "-" + n)) n += 1;
+  return base + "-" + n;
 }
 
-/* Pull an include block out of index.html and fix its relative links, since
-   essays live one directory deeper. */
-function partial(name) {
-  const index = fs.readFileSync(path.join(SITE, "index.html"), "utf8");
-  const m = index.match(new RegExp("<!-- #include: " + name + " -->[\\s\\S]*?<!-- /include -->"));
-  if (!m) throw new Error("could not find the '" + name + "' block in index.html");
-  return m[0]
-    .replace(/(href|src)="(?!https?:|mailto:|#|\/)/g, '$1="../');
-}
+async function publish(submission, decision) {
+  const slug = await uniqueSlug(decision.en.title, submission.id);
 
-function essayPage(entry, bodyHtml) {
-  const title = escapeHtml(entry.en.title);
-  const teaser = escapeHtml(entry.en.teaser);
-  const country = escapeHtml(countries.name(entry.country, "en"));
-  const byline = entry.byline ? escapeHtml(entry.byline) : "";
-
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title} — Qurama</title>
-<meta name="description" content="${teaser}">
-<meta name="robots" content="${entry.noindex ? "noindex, nofollow" : "index, follow"}">
-<link rel="icon" href="../assets/img/logo.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/css/style.css">
-</head>
-<body data-entry-id="${entry.id}">
-<a class="skip-link" href="#main">Skip to content</a>
-<div class="reading-progress" aria-hidden="true"></div>
-<div class="ikat-edge ikat-edge--left" aria-hidden="true"></div>
-<div class="ikat-edge ikat-edge--right" aria-hidden="true"></div>
-${partial("header")}
-<main id="main">
-  <article class="section">
-    <div class="wrap">
-      <p class="eyebrow">${country}</p>
-      <h1 class="essay__title">${title}</h1>
-      <p class="lede">${teaser}</p>
-      <p class="essay__byline">${byline ? "Told by " + byline : "Told anonymously"}${
-        entry.publishedAt ? " · " + escapeHtml(entry.publishedAt.slice(0, 10)) : ""
-      }</p>
-
-      <div class="essay-layout">
-        <aside><nav class="toc" id="toc" aria-label="On this page"></nav></aside>
-        <div class="essay__body prose">
-${bodyHtml}
-        </div>
-      </div>
-      <p class="note essay__rights">This story remains the property of the person who told it.
-        It is published here with their consent, and it can be withdrawn at any time —
-        <a href="../share.html">get in touch</a>.</p>
-      <div class="btn-row"><a class="btn btn--ghost" href="../stories.html">Back to the archive</a></div>
-
-      <section class="related" hidden>
-        <h2 data-i18n="essay.related">More from the archive</h2>
-        <div class="grid grid--3" id="related-grid"></div>
-      </section>
-    </div>
-  </article>
-</main>
-${partial("footer")}
-<script src="../assets/js/i18n.js"></script>
-<script src="../assets/js/data.js"></script>
-<script src="../assets/js/entries.js"></script>
-<script src="../assets/js/main.js"></script>
-</body>
-</html>
-`;
-}
-
-function readEntries() {
-  try {
-    const raw = fs.readFileSync(ENTRIES_JS, "utf8");
-    const m = raw.match(/const PUBLISHED_ENTRIES = (\[[\s\S]*?\]);/);
-    return m ? JSON.parse(m[1]) : [];
-  } catch (err) {
-    if (err.code === "ENOENT") return [];
-    throw err;
-  }
-}
-
-function writeEntries(entries) {
-  const body =
-    "/* Generated by the Qurama server when a story is published.\n" +
-    "   Do not edit by hand — approving or unpublishing a submission rewrites it.\n" +
-    "   While this list is empty the archive falls back to the placeholders in data.js. */\n\n" +
-    "const PUBLISHED_ENTRIES = " + JSON.stringify(entries, null, 2) + ";\n";
-  fs.mkdirSync(path.dirname(ENTRIES_JS), { recursive: true });
-  fs.writeFileSync(ENTRIES_JS, body, "utf8");
-}
-
-function publish(submission, decision) {
-  fs.mkdirSync(ESSAYS, { recursive: true });
-  const entries = readEntries();
-  const taken = new Set(entries.map(function (e) { return e.slug; }));
-  const slug = uniqueSlug(decision.en.title, taken);
-
-  const entry = {
+  const row = {
     id: submission.id,
     slug: slug,
-    url: "essays/" + slug + ".html",
     country: decision.country,
     theme: decision.theme,
     format: "text",
     byline: decision.byline || "",
     noindex: !!decision.noindex,
-    publishedAt: new Date().toISOString(),
-    en: decision.en,
-    uz: decision.uz,
+    published_at: new Date().toISOString(),
+    title_en: decision.en.title,
+    teaser_en: decision.en.teaser || "",
+    title_uz: decision.uz.title || decision.en.title,
+    teaser_uz: decision.uz.teaser || decision.en.teaser || "",
+    html: submission.html || "",
   };
 
-  fs.writeFileSync(path.join(ESSAYS, slug + ".html"), essayPage(entry, submission.html), "utf8");
-  entries.unshift(entry);
-  writeEntries(entries);
-  return entry;
+  const { data, error } = await admin().from("entries").upsert(row).select().single();
+  if (error) throw error;
+  await store.setStatus(submission.id, "published");
+  return data;
 }
 
-function unpublish(id) {
-  const entries = readEntries();
-  const entry = entries.find(function (e) { return e.id === id; });
-  if (!entry) return null;
-  writeEntries(entries.filter(function (e) { return e.id !== id; }));
-  try { fs.unlinkSync(path.join(ESSAYS, path.basename(entry.slug) + ".html")); } catch (_) { /* gone */ }
-  return entry;
+async function unpublish(id) {
+  const { error } = await admin().from("entries").delete().eq("id", id);
+  if (error) throw error;
+  await store.setStatus(id, "pending");
 }
 
-module.exports = { publish, unpublish, readEntries, writeEntries, slugify, escapeHtml };
+async function bySlug(slug) {
+  const { data, error } = await admin().from("entries").select("*").eq("slug", slug).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function listEntries() {
+  const { data, error } = await admin()
+    .from("entries")
+    .select("*")
+    .order("published_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+module.exports = { publish, unpublish, bySlug, listEntries, slugify };
