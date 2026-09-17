@@ -75,8 +75,19 @@ Then:
 ```bash
 cp .env.example .env     # then fill in the four values
 npm install
+npm run doctor           # checks the project is set up correctly
+npm run add-moderator    # creates your sign-in for /admin
 npm start                # http://localhost:3000
 ```
+
+`npm run doctor` verifies every requirement in turn — keys, both tables, the
+row-level-security rules, the private storage bucket, and your moderator
+account — and tells you exactly what to fix. Run it before any deploy. The line
+to care about most is *"the public key cannot read `submissions`"*: that is what
+stops a browser reading contributor email addresses.
+
+`npm run add-moderator` asks for an email and password in the terminal, so the
+password is never typed into a browser form or pasted into a chat.
 
 The queue is at `/admin`.
 

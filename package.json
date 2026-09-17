@@ -8,7 +8,9 @@
     "start": "node --env-file-if-exists=.env server/index.js",
     "dev": "node --env-file-if-exists=.env server/index.js",
     "test": "node test/run.js",
-    "demo": "node test/demo.js"
+    "demo": "node test/demo.js",
+    "doctor": "node --env-file-if-exists=.env tools/doctor.js",
+    "add-moderator": "node --env-file-if-exists=.env tools/add-moderator.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
