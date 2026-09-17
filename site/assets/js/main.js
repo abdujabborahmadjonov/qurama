@@ -315,8 +315,7 @@
       const item = items[0];
       const copy = item[lang] || item.en;
       host.innerHTML =
-        '<a class="featured" href="' + prefix() + item.url + '" data-country="' + item.country + '"' +
-          ' style="--motif:url(' + prefix() + "assets/img/country/" + item.country + '.svg)">' +
+        '<a class="featured" href="' + prefix() + item.url + '" data-country="' + item.country + '">' +
           '<div class="featured__art"><span class="motif" aria-hidden="true"></span></div>' +
           '<div class="featured__text">' +
             '<p class="featured__kicker">' + t("home.featured.kicker", lang) + " · " +

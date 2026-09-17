@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env server/index.js",
     "dev": "node --env-file-if-exists=.env server/index.js",
-    "test": "node test/run.js"
+    "test": "node test/run.js",
+    "demo": "node test/demo.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",

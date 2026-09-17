@@ -327,7 +327,18 @@ blockquote.pull {
 
 /* ---------- country motifs ----------
    Original line drawings, tinted by the country accent through a CSS mask so
-   one file works in both themes. */
+   one file works in both themes.
+
+   The url() has to be declared *here* rather than passed in from the markup:
+   a relative url() inside a custom property resolves against the stylesheet
+   that declares it, so an inline `--motif: url(assets/…)` would resolve
+   against /assets/css/ and 404. */
+[data-country="kz"] .motif { --motif: url("../img/country/kz.svg"); }
+[data-country="kg"] .motif { --motif: url("../img/country/kg.svg"); }
+[data-country="uz"] .motif { --motif: url("../img/country/uz.svg"); }
+[data-country="tj"] .motif { --motif: url("../img/country/tj.svg"); }
+[data-country="tm"] .motif { --motif: url("../img/country/tm.svg"); }
+[data-country="af"] .motif { --motif: url("../img/country/af.svg"); }
 .motif {
   width: 100%; height: 54px; margin-bottom: .9rem;
   background-color: var(--accent);

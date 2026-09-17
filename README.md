@@ -78,7 +78,14 @@ The queue is at `/admin`.
 
 ```bash
 npm test                 # 30 end-to-end tests, no Supabase project needed
+npm run demo             # the site with a few stories already in it
 ```
+
+`npm run demo` runs the app against a local fake Supabase seeded with a handful
+of published stories and one submission waiting in the queue. Nothing touches a
+real project and nothing is saved. It is how to look at the site, or work on the
+front end, before the Supabase project exists. The queue signs in with
+`moderator@example.org` / `demo-password-1234`.
 
 ---
 
