@@ -151,6 +151,10 @@
     document.querySelectorAll(".only-placeholders").forEach(function (el) { el.hidden = published(); });
   }
 
+  // Both dimensions must be present or a flag in a flex row falls back to the
+  // SVG's intrinsic width instead of scaling from the height.
+  var FLAG_WIDTH = {"af": 24, "ca": 32, "kg": 27, "kz": 32, "tj": 32, "tm": 24, "uz": 32};
+
   function countryName(code, lang) {
     const c = COUNTRIES.find(function (x) { return x.code === code; });
     return c ? (c[lang] || c.en) : code;
@@ -176,7 +180,8 @@
     const meta = [];
     if (item.country) {
       meta.push('<span class="tag"><img class="flag" src="' + prefix() +
-                "assets/img/flags/" + item.country + '.svg" alt="" height="16">' +
+                "assets/img/flags/" + item.country + '.svg" alt="" width="' +
+                (FLAG_WIDTH[item.country] || 24) + '" height="16">' +
                 countryName(item.country, lang) + "</span>");
     }
     if (item.format)  meta.push('<span class="tag tag--flag">' + t("format." + item.format, lang) + "</span>");

@@ -480,3 +480,35 @@ blockquote.pull {
 .flag--lg { height: 26px; width: auto; border-radius: 3px; }
 .mapboard__tile .flag { margin-bottom: .5rem; }
 .tag .flag { margin-right: .1rem; }
+
+/* ---------- craft photographs ----------
+   Objects, not people: on this site a photograph of a woman would read as a
+   contributor. Credits under the grid are a licence condition for the CC BY
+   and CC BY-SA images, not decoration — do not remove them. */
+.craft-grid {
+  display: grid; gap: var(--gap);
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+.craft {
+  margin: 0; background: var(--paper); border: 1px solid var(--line);
+  border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm);
+  display: flex; flex-direction: column;
+}
+/* direct child only — the caption also contains an <img>, the country flag */
+.craft > img {
+  display: block; width: 100%; height: 210px; object-fit: cover;
+  background: var(--paper-3);
+  border-bottom: 3px solid var(--accent);
+}
+.craft figcaption { padding: 1rem 1.15rem 1.25rem; }
+.craft__country {
+  display: flex; align-items: center; gap: .5rem;
+  font-family: var(--font-display); font-weight: 600; font-size: 1.02rem;
+  margin-bottom: .35rem;
+}
+.craft__note { display: block; font-size: .88rem; color: var(--ink-2); line-height: 1.55; }
+.craft-credits {
+  margin-top: 1.75rem; font-size: .78rem; color: var(--ink-3); line-height: 1.7;
+}
+.craft-credits a { color: var(--ink-3); }
+.craft-credits a:hover { color: var(--ink); }

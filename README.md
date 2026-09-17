@@ -35,6 +35,7 @@ site/
   assets/js/main.js      language switch, filtering, reading aids, uploads
   assets/img/country/    original ornament, one motif per country
   assets/img/flags/      national flags from Wikimedia Commons (public domain)
+  assets/img/craft/      craft photographs + CREDITS.md (attribution is required)
 server/
   app.js              the application
   index.js            long-lived entry point (Livops, VPS, local)
@@ -177,9 +178,20 @@ the government in place since August 2021. That is the flag most of the diaspora
 uses, including many of the women this archive is for. It is a political choice
 and it is reversible in one file — see `site/assets/img/flags/CREDITS.md`.
 
-## Still to do
+## Images
 
-- Photography — licensing needs checking before anything goes public
+Everything in `site/assets/img/` is either drawn for the project or downloaded
+from Wikimedia Commons under a licence permitting reuse. `tools/fetch-craft-images.py`
+re-fetches the craft photographs and rewrites their credits.
+
+Two rules if you add more:
+
+1. **Objects, not people.** On this site a photograph of a woman reads as a
+   contributor. Using a stranger's portrait would be untrue and unfair to her.
+2. **The credits block under the craft grid is a licence condition**, not
+   decoration. CC BY and CC BY-SA require attribution. Do not remove it.
+
+## Still to do
 - Kazakh, Kyrgyz, Tajik, Turkmen and Dari translations
 - A real map of Central Asia; the current one is a stylised tile layout
 - Email notification when something arrives in the queue
