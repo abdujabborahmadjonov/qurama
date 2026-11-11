@@ -47,17 +47,15 @@ function essayPage(entry) {
 <title>${title} — Qurama</title>
 <meta name="description" content="${teaser}">
 <meta name="robots" content="${entry.noindex ? "noindex, nofollow" : "index, follow"}">
-<link rel="icon" href="../assets/img/logo.svg" type="image/svg+xml">
+<link rel="icon" href="../assets/img/favicon.png" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/style.css">
 </head>
 <body data-entry-id="${escapeHtml(entry.id)}">
 <a class="skip-link" href="#main">Skip to content</a>
 <div class="reading-progress" aria-hidden="true"></div>
-<div class="ikat-edge ikat-edge--left" aria-hidden="true"></div>
-<div class="ikat-edge ikat-edge--right" aria-hidden="true"></div>
 ${p.header}
 <main id="main">
   <article class="section">

@@ -102,3 +102,38 @@ on conflict (id) do update
       allowed_mime_types = excluded.allowed_mime_types;
 
 -- No storage policies either: service role only.
+
+-- ------------------------------------------------------------------- gallery
+-- Photo essays and travel photographs, managed from /superadmin.
+-- Run this block on an existing project too; it is safe to run more than once.
+
+create table if not exists public.gallery_posts (
+  id           uuid primary key default gen_random_uuid(),
+  country      text not null check (country in ('kz', 'kg', 'uz', 'tj', 'tm')),
+  kind         text not null default 'travel' check (kind in ('essay', 'travel')),
+  title_en     text not null,
+  title_uz     text default '',
+  intro_en     text default '',
+  intro_uz     text default '',
+  place        text default '',
+  byline       text default '',
+  photos       jsonb not null default '[]'::jsonb,   -- [{path, caption_en, caption_uz}]
+  cover        integer not null default 0,
+  published    boolean not null default true,
+  published_at timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+
+create index if not exists gallery_posts_country_idx on public.gallery_posts (country);
+create index if not exists gallery_posts_published_at_idx on public.gallery_posts (published_at desc);
+
+alter table public.gallery_posts enable row level security;
+-- No policies: the site reads the gallery through the server (/api/gallery).
+
+-- Public bucket: gallery photographs are meant to be seen.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('gallery', 'gallery', true, 4194304, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update
+  set public = true,
+      file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;

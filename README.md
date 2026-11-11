@@ -213,3 +213,21 @@ Two rules if you add more:
 - Kazakh, Kyrgyz, Tajik, Turkmen and Dari translations
 - A real map of Central Asia; the current one is a stylised tile layout
 - Email notification when something arrives in the queue
+
+---
+
+## Gallery and the super admin
+
+`/gallery.html` shows photo essays and travel photographs, filed under five
+countries: Kazakhstan, Kyrgyzstan, Tajikistan, Turkmenistan and Uzbekistan.
+
+Posts are added at **`/superadmin`**. Sign in with username `superadmin`; the
+password comes from `QURAMA_SUPERADMIN_PASSWORD`, falling back to the default
+in `server/lib/superadmin.js` when that is unset. **This repository is public,
+so set your own password in the host's environment settings.** The same
+sign-in also opens the moderation queue at `/admin`.
+
+On an existing Supabase project, re-run `supabase/schema.sql` once: it adds the
+`gallery_posts` table and the public `gallery` storage bucket and leaves
+everything else as it is. Photos are resized in the browser to 2400px before
+upload, one per request, so they stay under serverless body limits.

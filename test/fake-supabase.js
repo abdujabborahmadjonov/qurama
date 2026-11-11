@@ -11,7 +11,7 @@ const http = require("http");
 const crypto = require("crypto");
 
 function create() {
-  const db = { submissions: [], entries: [] };
+  const db = { submissions: [], entries: [], gallery_posts: [] };
   const storage = new Map();          // "bucket/path" -> Buffer
   const users = new Map();            // email -> { id, password }
   const tokens = new Map();           // access token -> email
@@ -126,6 +126,15 @@ function create() {
       return json(res, 200, { signedURL: "/object/sign/" + key + "?token=" + crypto.randomBytes(8).toString("hex") });
     }
 
+    if (url.pathname.startsWith("/storage/v1/object/public/") && req.method === "GET") {
+      const key = decodeURIComponent(url.pathname.slice("/storage/v1/object/public/".length));
+      const buf = storage.get(key);
+      if (!buf) return json(res, 404, { message: "Object not found" });
+      const ext = key.split(".").pop();
+      res.writeHead(200, { "Content-Type": ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : ext === "svg" ? "image/svg+xml" : "image/jpeg" });
+      return res.end(buf);
+    }
+
     if (url.pathname.startsWith("/storage/v1/object/")) {
       const key = url.pathname.slice("/storage/v1/object/".length);
       if (req.method === "POST" || req.method === "PUT") {
@@ -189,6 +198,7 @@ function create() {
           const record = Object.assign({}, row);
           if (!record.id) record.id = crypto.randomUUID();
           if (table === "submissions" && !record.created_at) record.created_at = new Date().toISOString();
+          if (table === "gallery_posts" && !record.published_at) record.published_at = new Date().toISOString();
           const existing = db[table].findIndex(function (r) { return r.id === record.id; });
           if (existing !== -1) {
             if (!upsert) { json(res, 409, { code: "23505", message: "duplicate key value" }); return null; }

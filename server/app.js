@@ -8,8 +8,11 @@
    Public   GET  /                      the site
             GET  /essays/:slug          a published story, rendered from the database
             POST /api/submissions       a contributor sends an essay
+            GET  /api/gallery           published photo essays and travel photos
    Private  GET  /admin                 moderation queue
             *    /api/admin/*           queue actions, bearer token required
+            GET  /superadmin            gallery management (super-admin sign-in)
+            *    /api/super/*           gallery actions, super-admin token required
 */
 
 const express = require("express");
@@ -22,6 +25,8 @@ const docx = require("./lib/docx");
 const publisher = require("./lib/publish");
 const render = require("./lib/render");
 const store = require("./lib/store");
+const gallery = require("./lib/gallery");
+const superadmin = require("./lib/superadmin");
 const supabase = require("./lib/supabase");
 const { SITE } = require("./lib/paths");
 
@@ -250,6 +255,148 @@ app.delete("/api/admin/submissions/:id", auth.requireAdmin, async function (req,
     res.json({ ok: true });
   } catch (e) {
     console.error("delete failed:", e.message);
+    res.status(500).json({ ok: false, error: "delete_failed" });
+  }
+});
+
+/* ---------------------------------------------------------------- gallery -- */
+
+function galleryFields(b) {
+  const country = gallery.COUNTRIES.includes(b.country) ? b.country : null;
+  const kind = gallery.KINDS.includes(b.kind) ? b.kind : null;
+  const titleEn = clean(b.titleEn, 160);
+  if (!country) return { error: "bad_country" };
+  if (!kind) return { error: "bad_kind" };
+  if (!titleEn) return { error: "title_required" };
+  const photos = (Array.isArray(b.photos) ? b.photos : []).slice(0, 60).map(function (p) {
+    return {
+      path: String((p && p.path) || "").slice(0, 200),
+      caption_en: clean(p && p.caption_en, 400),
+      caption_uz: clean(p && p.caption_uz, 400),
+    };
+  }).filter(function (p) { return /^[0-9]{4}-[0-9]{2}\/[0-9a-f-]{36}\.(jpg|png|webp)$/.test(p.path); });
+  if (!photos.length) return { error: "photos_required" };
+  const cover = Math.max(0, Math.min(photos.length - 1, parseInt(b.cover, 10) || 0));
+  return { row: {
+    country: country, kind: kind,
+    title_en: titleEn, title_uz: clean(b.titleUz, 160),
+    intro_en: String(b.introEn || "").trim().slice(0, 8000),
+    intro_uz: String(b.introUz || "").trim().slice(0, 8000),
+    place: clean(b.place, 120), byline: clean(b.byline, 120),
+    photos: photos, cover: cover, published: b.published !== false,
+  } };
+}
+
+app.get("/api/gallery", async function (req, res) {
+  res.set("Cache-Control", "public, max-age=30, stale-while-revalidate=300");
+  if (!supabase.configured()) return res.json({ ok: true, posts: [] });
+  try {
+    res.json({ ok: true, posts: await gallery.list() });
+  } catch (e) {
+    console.error("gallery failed:", e.message);
+    res.json({ ok: true, posts: [] });
+  }
+});
+
+app.get("/superadmin", function (req, res) {
+  res.set("Cache-Control", "no-store");
+  res.sendFile(path.join(__dirname, "admin", "superadmin.html"));
+});
+
+app.post("/api/super/login", function (req, res) {
+  const b = req.body || {};
+  const result = superadmin.login(b.username, b.password, req.ip);
+  res.set("Cache-Control", "no-store");
+  if (!result.ok) return res.status(result.error === "too_many" ? 429 : 401).json(result);
+  res.json(result);
+});
+
+app.get("/api/super/session", function (req, res) {
+  res.set("Cache-Control", "no-store");
+  const user = superadmin.identify(req);
+  res.json({ ok: true, signedIn: !!user, user: user ? user.email : null,
+    defaultPassword: user ? superadmin.usingDefault() : undefined,
+    configured: supabase.configured() });
+});
+
+app.get("/api/super/gallery", superadmin.requireSuper, async function (req, res) {
+  try {
+    res.set("Cache-Control", "no-store");
+    res.json({ ok: true, posts: await gallery.list({ all: true }) });
+  } catch (e) {
+    console.error("gallery list failed:", e.message);
+    res.status(500).json({ ok: false, error: "gallery_failed" });
+  }
+});
+
+// One photo per request, so each stays under serverless body limits; the
+// browser shrinks photos before sending.
+const photoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 4 * 1024 * 1024, files: 1, fields: 5 },
+  fileFilter: function (req, file, cb) {
+    if (!gallery.IMAGE_TYPES[file.mimetype]) return cb(new UploadError("not_image"));
+    cb(null, true);
+  },
+});
+
+function looksLikeImage(buf) {
+  if (buf.length < 12) return false;
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return true;                         // jpeg
+  if (buf.slice(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return true; // png
+  return buf.slice(0, 4).toString("ascii") === "RIFF" && buf.slice(8, 12).toString("ascii") === "WEBP";
+}
+
+app.post("/api/super/photos", superadmin.requireSuper, function (req, res) {
+  photoUpload.single("photo")(req, res, async function (err) {
+    if (err) {
+      const code = err.code === "LIMIT_FILE_SIZE" ? "too_large" : err.code === "not_image" ? "not_image" : "upload_failed";
+      return res.status(400).json({ ok: false, error: code });
+    }
+    try {
+      if (!supabase.configured()) return res.status(503).json({ ok: false, error: "not_configured" });
+      if (!req.file || !looksLikeImage(req.file.buffer)) return res.status(400).json({ ok: false, error: "not_image" });
+      const saved = await gallery.uploadImage(req.file.buffer, req.file.mimetype);
+      res.json({ ok: true, path: saved.path, url: saved.url });
+    } catch (e) {
+      console.error("photo upload failed:", e.message);
+      res.status(500).json({ ok: false, error: "upload_failed" });
+    }
+  });
+});
+
+app.post("/api/super/gallery", superadmin.requireSuper, async function (req, res) {
+  const f = galleryFields(req.body || {});
+  if (f.error) return res.status(400).json({ ok: false, error: f.error });
+  try {
+    res.json({ ok: true, post: await gallery.save(null, f.row) });
+  } catch (e) {
+    console.error("gallery save failed:", e.message);
+    res.status(500).json({ ok: false, error: "save_failed" });
+  }
+});
+
+app.put("/api/super/gallery/:id", superadmin.requireSuper, async function (req, res) {
+  const f = galleryFields(req.body || {});
+  if (f.error) return res.status(400).json({ ok: false, error: f.error });
+  try {
+    const before = await gallery.get(req.params.id);
+    if (!before) return res.status(404).json({ ok: false, error: "not_found" });
+    const keep = new Set(f.row.photos.map(function (p) { return p.path; }));
+    await gallery.removeImages(before.photos.map(function (p) { return p.path; }).filter(function (p) { return !keep.has(p); }));
+    res.json({ ok: true, post: await gallery.save(req.params.id, f.row) });
+  } catch (e) {
+    console.error("gallery update failed:", e.message);
+    res.status(500).json({ ok: false, error: "save_failed" });
+  }
+});
+
+app.delete("/api/super/gallery/:id", superadmin.requireSuper, async function (req, res) {
+  try {
+    await gallery.remove(req.params.id);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("gallery delete failed:", e.message);
     res.status(500).json({ ok: false, error: "delete_failed" });
   }
 });

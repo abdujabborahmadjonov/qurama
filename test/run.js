@@ -326,9 +326,83 @@ async function main() {
     assert.ok(fake.db.submissions.some(function (s) { return s.id === remaining; }));
   });
 
+  console.log("\ngallery and super admin");
+
+  const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(64, 1)]);
+  let SA = null;
+
+  await test("the super admin cannot sign in with a wrong password", async function () {
+    const res = await fetch(base + "/api/super/login", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "superadmin", password: "wrong" }) });
+    assert.strictEqual(res.status, 401);
+  });
+
+  await test("the super admin signs in with the default password", async function () {
+    const res = await fetch(base + "/api/super/login", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "superadmin", password: "charoscharos" }) });
+    const body = await res.json();
+    assert.strictEqual(body.ok, true);
+    SA = body.token;
+  });
+
+  await test("gallery writes need the super admin", async function () {
+    const res = await fetch(base + "/api/super/gallery", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    assert.strictEqual(res.status, 401);
+    const forged = await fetch(base + "/api/super/gallery", { headers: { Authorization: "Bearer " + SA.slice(0, -2) + "xx" } });
+    assert.strictEqual(forged.status, 401);
+  });
+
+  await test("rejects an upload that is not an image", async function () {
+    const form = new FormData();
+    form.set("photo", new Blob([Buffer.from("hello")], { type: "image/jpeg" }), "x.jpg");
+    const res = await fetch(base + "/api/super/photos", { method: "POST", body: form, headers: { Authorization: "Bearer " + SA } });
+    assert.strictEqual((await res.json()).error, "not_image");
+  });
+
+  let galleryId = null, photoPath = null;
+  await test("uploads a photo and publishes a post", async function () {
+    const form = new FormData();
+    form.set("photo", new Blob([JPEG], { type: "image/jpeg" }), "x.jpg");
+    const up = await (await fetch(base + "/api/super/photos", { method: "POST", body: form, headers: { Authorization: "Bearer " + SA } })).json();
+    assert.strictEqual(up.ok, true);
+    photoPath = up.path;
+    const res = await fetch(base + "/api/super/gallery", { method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + SA },
+      body: JSON.stringify({ country: "uz", kind: "essay", titleEn: "Bukhara at dawn", photos: [{ path: photoPath, caption_en: "Lyabi-hauz" }] }) });
+    const body = await res.json();
+    assert.strictEqual(body.ok, true, JSON.stringify(body));
+    galleryId = body.post.id;
+  });
+
+  await test("rejects a country outside the five", async function () {
+    const res = await fetch(base + "/api/super/gallery", { method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + SA },
+      body: JSON.stringify({ country: "af", kind: "essay", titleEn: "x", photos: [{ path: photoPath }] }) });
+    assert.strictEqual((await res.json()).error, "bad_country");
+  });
+
+  await test("the public gallery lists it with a public image URL", async function () {
+    const body = await (await fetch(base + "/api/gallery")).json();
+    const post = body.posts.find(function (p) { return p.id === galleryId; });
+    assert.ok(post);
+    const img = await fetch(post.cover_url);
+    assert.strictEqual(img.status, 200);
+  });
+
+  await test("the super admin token also opens the moderation queue", async function () {
+    const res = await fetch(base + "/api/admin/submissions", { headers: { Authorization: "Bearer " + SA } });
+    assert.strictEqual(res.status, 200);
+  });
+
+  await test("deleting a post removes its photos", async function () {
+    const res = await fetch(base + "/api/super/gallery/" + galleryId, { method: "DELETE", headers: { Authorization: "Bearer " + SA } });
+    assert.strictEqual((await res.json()).ok, true);
+    assert.strictEqual(fake.storage.has("gallery/" + photoPath), false);
+  });
+
   console.log("\nthe site itself");
 
-  for (const p of ["/", "/about.html", "/context.html", "/stories.html", "/share.html", "/resources.html", "/admin"]) {
+  for (const p of ["/", "/about.html", "/context.html", "/stories.html", "/gallery.html", "/share.html", "/resources.html", "/admin", "/superadmin"]) {
     await test("serves " + p, async function () {
       const res = await fetch(base + p);
       assert.strictEqual(res.status, 200);
