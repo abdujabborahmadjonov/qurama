@@ -770,3 +770,5 @@ blockquote.pull { background: none; border-left: 2px solid var(--ink); border-ra
 .site-footer { background: none; border-top: 1px solid var(--ink); margin-top: 0; padding: 3.5rem 0 2rem; }
 .site-footer .brand img { height: 26px; }
 .colophon { border-top-color: var(--line); }
+.admin-link { color: var(--ink-3); text-decoration: none; border: 1px solid var(--line); padding: .25rem .7rem; font-size: .78rem; }
+.admin-link:hover { color: var(--ink); border-color: var(--ink); }
