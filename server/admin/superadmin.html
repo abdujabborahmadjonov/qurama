@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Super admin — Qurama</title>
+<link rel="icon" href="/assets/img/favicon.png" type="image/png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/style.css">
+<style>
+  .admin-head { display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; padding:1rem 0; border-bottom:1px solid var(--line); margin-bottom:2rem; }
+  .admin-head h1 { font-size:1.35rem; margin:0; margin-right:auto; }
+  .admin-head img { height:34px; width:auto; }
+  .msg { padding:.75rem 1rem; border-radius:10px; margin-bottom:1rem; font-size:.9rem; }
+  .msg--err { background:color-mix(in srgb,var(--pomegranate) 15%,transparent); border:1px solid color-mix(in srgb,var(--pomegranate) 35%,transparent); }
+  .msg--ok  { background:color-mix(in srgb,var(--sage) 18%,transparent); border:1px solid color-mix(in srgb,var(--sage) 40%,transparent); }
+  .msg--warn{ background:color-mix(in srgb,var(--gold) 22%,transparent); border:1px solid color-mix(in srgb,var(--gold) 45%,transparent); }
+  .panel { border:1px solid var(--line); border-radius:var(--radius); background:var(--paper); padding:1.25rem; margin-bottom:1.5rem; }
+  .two { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:1rem; }
+  .drop { border:2px dashed var(--line); border-radius:var(--radius); padding:1.5rem; text-align:center; color:var(--ink-2); cursor:pointer; }
+  .drop.is-over { border-color:var(--accent); background:var(--paper-2); }
+  .photos { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:1rem; margin-top:1rem; }
+  .ph { border:1px solid var(--line); border-radius:10px; overflow:hidden; background:var(--paper-2); }
+  .ph img { width:100%; aspect-ratio:4/3; object-fit:cover; display:block; }
+  .ph__body { padding:.6rem; display:grid; gap:.4rem; }
+  .ph__body input { font-size:.82rem; padding:.4rem .5rem; }
+  .ph__tools { display:flex; gap:.3rem; flex-wrap:wrap; font-size:.78rem; }
+  .ph__tools button { font:inherit; border:1px solid var(--line); background:var(--paper); color:var(--ink); border-radius:6px; padding:.2rem .45rem; cursor:pointer; }
+  .ph.is-cover { outline:3px solid var(--accent); }
+  .ph.is-busy { opacity:.55; }
+  .posts { display:grid; gap:.75rem; }
+  .post-row { display:flex; gap:1rem; align-items:center; border:1px solid var(--line); border-radius:10px; padding:.6rem; background:var(--paper); }
+  .post-row img { width:84px; height:64px; object-fit:cover; border-radius:6px; }
+  .post-row .grow { flex:1; min-width:0; }
+  .post-row h3 { margin:0; font-size:1rem; }
+  .post-row small { color:var(--ink-3); }
+  .danger { color:#fff; background:var(--pomegranate); border-color:var(--pomegranate); }
+  textarea { min-height:140px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="admin-head">
+    <img src="/assets/img/logo.png" alt="Qurama">
+    <h1>Super admin</h1>
+    <a class="btn btn--ghost" href="/gallery" target="_blank" rel="noopener">Gallery</a>
+    <a class="btn btn--ghost" href="/admin" id="to-queue" hidden>Moderation queue</a>
+    <button class="btn btn--ghost" id="signout" hidden>Sign out</button>
+  </div>
+
+  <div id="msg"></div>
+  <div id="warn"></div>
+
+  <section id="login" hidden>
+    <p class="lede">Sign in to add photo essays and travel photographs to the gallery.</p>
+    <form class="form" id="login-form" style="max-width:420px">
+      <div class="field"><label for="un">Username</label><input id="un" autocomplete="username" value="superadmin" required></div>
+      <div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" required></div>
+      <div><button class="btn btn--primary" type="submit">Sign in</button></div>
+    </form>
+  </section>
+
+  <section id="app" hidden>
+    <div class="panel">
+      <h2 id="form-title" style="margin-top:0">New gallery post</h2>
+      <form class="form" id="post-form">
+        <div class="two">
+          <div class="field"><label for="country">Country</label>
+            <select id="country" required>
+              <option value="kz">Kazakhstan</option>
+              <option value="kg">Kyrgyzstan</option>
+              <option value="uz">Uzbekistan</option>
+              <option value="tj">Tajikistan</option>
+              <option value="tm">Turkmenistan</option>
+            </select></div>
+          <div class="field"><label for="kind">Type</label>
+            <select id="kind">
+              <option value="essay">Photo essay</option>
+              <option value="travel">Travel photos</option>
+            </select></div>
+          <div class="field"><label for="place">Place (optional)</label><input id="place" placeholder="e.g. Bukhara, old town"></div>
+          <div class="field"><label for="byline">Photographer (optional)</label><input id="byline"></div>
+        </div>
+        <div class="two">
+          <div class="field"><label for="titleEn">Title (English)</label><input id="titleEn" required maxlength="160"></div>
+          <div class="field"><label for="titleUz">Sarlavha (O‘zbekcha)</label><input id="titleUz" maxlength="160"></div>
+        </div>
+        <div class="two">
+          <div class="field"><label for="introEn">Essay text (English) — blank lines start new paragraphs</label><textarea id="introEn"></textarea></div>
+          <div class="field"><label for="introUz">Matn (O‘zbekcha)</label><textarea id="introUz"></textarea></div>
+        </div>
+
+        <div class="field">
+          <label>Photos</label>
+          <div class="drop" id="drop" tabindex="0" role="button">Drop photos here, or click to choose. JPEG, PNG or WebP — large photos are resized automatically.</div>
+          <input type="file" id="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
+          <div class="photos" id="photos"></div>
+        </div>
+
+        <label style="display:flex;gap:.5rem;align-items:center"><input type="checkbox" id="published" checked> Visible on the site</label>
+        <div class="btn-row">
+          <button class="btn btn--primary" type="submit" id="save">Publish</button>
+          <button class="btn btn--ghost" type="button" id="reset">Clear form</button>
+        </div>
+      </form>
+    </div>
+
+    <h2>All posts</h2>
+    <div class="posts" id="posts"></div>
+  </section>
+</div>
+
+<script>
+const $ = function (s, r) { return (r || document).querySelector(s); };
+const NAMES = { kz: "Kazakhstan", kg: "Kyrgyzstan", uz: "Uzbekistan", tj: "Tajikistan", tm: "Turkmenistan" };
+let TOKEN = null, POSTS = [], EDITING = null, PHOTOS = [], COVER = 0, PENDING = 0;
+
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+function show(kind, text) {
+  $("#msg").innerHTML = '<div class="msg msg--' + kind + '">' + esc(text) + "</div>";
+  clearTimeout(show.t); show.t = setTimeout(function () { $("#msg").innerHTML = ""; }, 7000);
+}
+// Same key as the moderation queue, so one sign-in opens both.
+function setToken(t) {
+  TOKEN = t;
+  try { t ? sessionStorage.setItem("qurama.token", t) : sessionStorage.removeItem("qurama.token"); } catch (_) {}
+}
+async function api(method, url, body) {
+  const opts = { method: method, headers: {} };
+  if (TOKEN) opts.headers.Authorization = "Bearer " + TOKEN;
+  if (body instanceof FormData) opts.body = body;
+  else if (body) { opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body); }
+  const res = await fetch(url, opts);
+  const data = await res.json().catch(function () { return { ok: false, error: "bad_response" }; });
+  if (res.status === 401 && url !== "/api/super/login") { setToken(null); boot(); }
+  return data;
+}
+
+const ERRORS = {
+  bad_credentials: "Wrong username or password.",
+  too_many: "Too many attempts. Wait 15 minutes and try again.",
+  title_required: "Give the post an English title.",
+  photos_required: "Add at least one photo.",
+  not_configured: "Supabase is not configured on the server yet.",
+  too_large: "That photo is still over 4 MB after resizing.",
+  not_image: "That file is not a JPEG, PNG or WebP image.",
+};
+function errText(e) { return ERRORS[e] || ("Something went wrong (" + e + ")."); }
+
+/* ---------- sign in ---------- */
+async function boot() {
+  try { TOKEN = sessionStorage.getItem("qurama.token"); } catch (_) {}
+  const s = TOKEN && TOKEN.indexOf("sa.") === 0 ? await api("GET", "/api/super/session") : { signedIn: false };
+  const inside = !!s.signedIn;
+  $("#login").hidden = inside; $("#app").hidden = !inside;
+  $("#signout").hidden = !inside; $("#to-queue").hidden = !inside;
+  $("#warn").innerHTML = "";
+  if (inside && s.defaultPassword) {
+    $("#warn").innerHTML = '<div class="msg msg--warn">You are using the default password. Set QURAMA_SUPERADMIN_PASSWORD in the host’s environment settings to change it.</div>';
+  }
+  if (inside && s.configured === false) {
+    $("#warn").innerHTML += '<div class="msg msg--err">Supabase is not configured on the server, so posts cannot be saved yet.</div>';
+  }
+  if (inside) loadPosts();
+}
+$("#login-form").addEventListener("submit", async function (e) {
+  e.preventDefault();
+  const r = await api("POST", "/api/super/login", { username: $("#un").value, password: $("#pw").value });
+  if (!r.ok) return show("err", errText(r.error));
+  setToken(r.token); $("#pw").value = ""; boot();
+});
+$("#signout").addEventListener("click", function () { setToken(null); boot(); });
+
+/* ---------- photos ---------- */
+// Shrink to at most 2400px on the long side and re-encode as JPEG, so a phone
+// photo fits comfortably under the upload limit.
+function shrink(file) {
+  return new Promise(function (resolve) {
+    if (file.type === "image/png" && file.size < 3.5 * 1024 * 1024) return resolve(file);
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = function () {
+      const max = 2400, scale = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      c.toBlob(function (b) { resolve(b ? new File([b], "photo.jpg", { type: "image/jpeg" }) : file); }, "image/jpeg", 0.86);
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
+async function addFiles(files) {
+  for (const f of Array.from(files)) {
+    if (!/^image\/(jpeg|png|webp)$/.test(f.type)) { show("err", f.name + ": " + errText("not_image")); continue; }
+    const item = { path: null, url: URL.createObjectURL(f), caption_en: "", caption_uz: "", busy: true };
+    PHOTOS.push(item); PENDING++; drawPhotos();
+    const fd = new FormData(); fd.append("photo", await shrink(f));
+    const r = await api("POST", "/api/super/photos", fd);
+    PENDING--;
+    if (r.ok) { item.path = r.path; item.url = r.url; item.busy = false; }
+    else { PHOTOS.splice(PHOTOS.indexOf(item), 1); show("err", f.name + ": " + errText(r.error)); }
+    drawPhotos();
+  }
+}
+
+function drawPhotos() {
+  const box = $("#photos"); box.innerHTML = "";
+  if (COVER >= PHOTOS.length) COVER = 0;
+  PHOTOS.forEach(function (p, i) {
+    const el = document.createElement("div");
+    el.className = "ph" + (i === COVER ? " is-cover" : "") + (p.busy ? " is-busy" : "");
+    el.innerHTML = '<img alt="" src="' + esc(p.url) + '"><div class="ph__body">' +
+      '<input placeholder="Caption (English)" data-k="caption_en" value="' + esc(p.caption_en) + '">' +
+      '<input placeholder="Izoh (O‘zbekcha)" data-k="caption_uz" value="' + esc(p.caption_uz) + '">' +
+      '<div class="ph__tools">' + (p.busy ? "<span>Uploading…</span>" :
+        '<button type="button" data-a="cover">' + (i === COVER ? "★ Cover" : "Make cover") + '</button>' +
+        '<button type="button" data-a="up">←</button><button type="button" data-a="down">→</button>' +
+        '<button type="button" data-a="del">Remove</button>') + "</div></div>";
+    el.querySelectorAll("input").forEach(function (inp) {
+      inp.addEventListener("input", function () { p[inp.dataset.k] = inp.value; });
+    });
+    el.querySelectorAll("button").forEach(function (b) {
+      b.addEventListener("click", function () {
+        const a = b.dataset.a;
+        if (a === "cover") COVER = i;
+        if (a === "del") { PHOTOS.splice(i, 1); if (COVER === i) COVER = 0; else if (COVER > i) COVER--; }
+        if ((a === "up" && i > 0) || (a === "down" && i < PHOTOS.length - 1)) {
+          const j = a === "up" ? i - 1 : i + 1;
+          PHOTOS.splice(j, 0, PHOTOS.splice(i, 1)[0]);
+          if (COVER === i) COVER = j; else if (COVER === j) COVER = i;
+        }
+        drawPhotos();
+      });
+    });
+    box.appendChild(el);
+  });
+}
+
+const drop = $("#drop");
+drop.addEventListener("click", function () { $("#file").click(); });
+drop.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#file").click(); } });
+$("#file").addEventListener("change", function (e) { addFiles(e.target.files); e.target.value = ""; });
+["dragenter", "dragover"].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.add("is-over"); }); });
+["dragleave", "drop"].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.remove("is-over"); }); });
+drop.addEventListener("drop", function (e) { addFiles(e.dataTransfer.files); });
+
+/* ---------- save ---------- */
+function resetForm() {
+  EDITING = null; PHOTOS = []; COVER = 0;
+  $("#post-form").reset(); $("#published").checked = true;
+  $("#form-title").textContent = "New gallery post"; $("#save").textContent = "Publish";
+  drawPhotos();
+}
+$("#reset").addEventListener("click", resetForm);
+
+$("#post-form").addEventListener("submit", async function (e) {
+  e.preventDefault();
+  if (PENDING) return show("err", "Wait for the photos to finish uploading.");
+  const body = {
+    country: $("#country").value, kind: $("#kind").value,
+    place: $("#place").value, byline: $("#byline").value,
+    titleEn: $("#titleEn").value, titleUz: $("#titleUz").value,
+    introEn: $("#introEn").value, introUz: $("#introUz").value,
+    published: $("#published").checked, cover: COVER,
+    photos: PHOTOS.filter(function (p) { return p.path; }).map(function (p) {
+      return { path: p.path, caption_en: p.caption_en, caption_uz: p.caption_uz };
+    }),
+  };
+  $("#save").disabled = true;
+  const r = EDITING ? await api("PUT", "/api/super/gallery/" + EDITING, body) : await api("POST", "/api/super/gallery", body);
+  $("#save").disabled = false;
+  if (!r.ok) return show("err", errText(r.error));
+  show("ok", EDITING ? "Saved." : "Published to the gallery.");
+  resetForm(); loadPosts();
+});
+
+/* ---------- list ---------- */
+async function loadPosts() {
+  const r = await api("GET", "/api/super/gallery");
+  if (!r.ok) return show("err", errText(r.error));
+  POSTS = r.posts;
+  const box = $("#posts"); box.innerHTML = POSTS.length ? "" : '<p class="note">No posts yet.</p>';
+  POSTS.forEach(function (p) {
+    const row = document.createElement("div"); row.className = "post-row";
+    row.innerHTML = (p.cover_url ? '<img alt="" src="' + esc(p.cover_url) + '">' : "") +
+      '<div class="grow"><h3>' + esc(p.title_en) + '</h3><small>' + esc(NAMES[p.country]) + " · " +
+      (p.kind === "essay" ? "Photo essay" : "Travel photos") + " · " + p.photos.length + " photos" +
+      (p.published ? "" : " · hidden") + "</small></div>" +
+      '<a class="btn btn--ghost" target="_blank" rel="noopener" href="/gallery?post=' + esc(p.id) + '">View</a>' +
+      '<button class="btn btn--ghost" data-a="edit">Edit</button><button class="btn danger" data-a="del">Delete</button>';
+    row.querySelector('[data-a="edit"]').addEventListener("click", function () { edit(p); });
+    row.querySelector('[data-a="del"]').addEventListener("click", async function () {
+      if (!confirm("Delete “" + p.title_en + "” and its photos permanently?")) return;
+      const d = await api("DELETE", "/api/super/gallery/" + p.id);
+      if (!d.ok) return show("err", errText(d.error));
+      show("ok", "Deleted."); if (EDITING === p.id) resetForm(); loadPosts();
+    });
+    box.appendChild(row);
+  });
+}
+
+function edit(p) {
+  EDITING = p.id;
+  $("#country").value = p.country; $("#kind").value = p.kind;
+  $("#place").value = p.place || ""; $("#byline").value = p.byline || "";
+  $("#titleEn").value = p.title_en || ""; $("#titleUz").value = p.title_uz || "";
+  $("#introEn").value = p.intro_en || ""; $("#introUz").value = p.intro_uz || "";
+  $("#published").checked = !!p.published;
+  PHOTOS = p.photos.map(function (x) { return { path: x.path, url: x.url, caption_en: x.caption_en || "", caption_uz: x.caption_uz || "" }; });
+  COVER = p.cover || 0;
+  $("#form-title").textContent = "Editing: " + p.title_en; $("#save").textContent = "Save changes";
+  drawPhotos(); window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+boot();
+</script>
+</body>
+</html>

@@ -10,6 +10,7 @@
    cannot carry the credential, so there is no CSRF token to manage. */
 
 const { admin } = require("./supabase");
+const superadmin = require("./superadmin");
 
 function moderators() {
   return (process.env.QURAMA_MODERATORS || "")
@@ -27,6 +28,10 @@ function bearer(req) {
 async function identify(req) {
   const token = bearer(req);
   if (!token) return null;
+  // The super-admin's own signed token also opens the moderation queue.
+  const sa = superadmin.verify(token);
+  if (sa) return { id: "superadmin", email: sa.email, super: true };
+  if (token.indexOf("sa.") === 0) return null;
   try {
     const { data, error } = await admin().auth.getUser(token);
     if (error || !data || !data.user) return null;

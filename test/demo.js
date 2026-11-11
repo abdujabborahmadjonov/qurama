@@ -73,10 +73,28 @@ fake.server.listen(FAKE_PORT, function () {
     html: BODY, words: 120, warnings: [],
   });
 
+  // a few gallery posts, using the craft photographs already in the repo
+  const fs = require("fs"), path = require("path");
+  const craft = path.join(__dirname, "..", "site", "assets", "img", "craft");
+  [["uz", "essay", "Threads of Shakhrisabz", "Bukhara · Shakhrisabz"], ["kg", "travel", "Felt and mountains", "Naryn"],
+   ["kz", "travel", "Steppe colours", "Almaty"], ["tj", "essay", "A veil, a wedding", "Khujand"],
+   ["tm", "travel", "Carpet market", "Ashgabat"]].forEach(function (g, i) {
+    const p = "2026-01/" + crypto.randomUUID() + ".jpg";
+    fake.storage.set("gallery/" + p, fs.readFileSync(path.join(craft, g[0] + ".jpg")));
+    fake.db.gallery_posts.push({
+      id: crypto.randomUUID(), country: g[0], kind: g[1], title_en: g[2], title_uz: "", place: g[3], byline: "",
+      intro_en: "Demonstration text for a photo essay.\n\nA second paragraph.", intro_uz: "",
+      photos: [{ path: p, caption_en: "A demonstration photograph.", caption_uz: "" }], cover: 0, published: true,
+      published_at: new Date(Date.now() - i * 3600000).toISOString(),
+    });
+  });
+
   require("../server/app").listen(PORT, function () {
     console.log("Qurama demo on http://localhost:" + PORT);
     console.log("Moderation queue: http://localhost:" + PORT + "/admin");
     console.log("  sign in with  moderator@example.org  /  demo-password-1234");
+    console.log("Super admin (gallery): http://localhost:" + PORT + "/superadmin");
+    console.log("  sign in with  superadmin  /  charoscharos");
     console.log("\nThis is a local fake. No real Supabase project is involved,");
     console.log("and nothing is saved when you stop it.\n");
   });
