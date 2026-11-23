@@ -406,6 +406,7 @@ function sectionOf(key) {
   return s ? s[0] : "general";
 }
 function current(key, lang) {
+  if (DIRTY[key] && DIRTY[key].reset) return DEFAULTS[lang][key] || "";
   if (DIRTY[key] && DIRTY[key][lang] != null) return DIRTY[key][lang];
   if (SAVED[lang][key] != null) return SAVED[lang][key];
   return DEFAULTS[lang][key] || "";
@@ -457,13 +458,17 @@ function drawTexts() {
       t.value = current(key, t.dataset.lang);
       t.addEventListener("input", function () {
         DIRTY[key] = DIRTY[key] || {};
+        if (DIRTY[key].reset) {
+          // typed after "Restore original": start from the restored defaults
+          DIRTY[key] = { en: DEFAULTS.en[key] || "", uz: DEFAULTS.uz[key] || "" };
+        }
         DIRTY[key][t.dataset.lang] = t.value;
         row.classList.add("is-dirty"); grow(t); syncSave();
       });
     });
     const reset = row.querySelector("[data-reset]");
     if (reset) reset.addEventListener("click", function () {
-      DIRTY[key] = { en: "", uz: "", reset: true };
+      DIRTY[key] = { reset: true };
       row.querySelectorAll("textarea").forEach(function (t) { t.value = DEFAULTS[t.dataset.lang][key] || ""; grow(t); });
       row.classList.add("is-dirty"); syncSave();
     });
