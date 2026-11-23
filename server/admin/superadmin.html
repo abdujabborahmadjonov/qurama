@@ -37,6 +37,31 @@
   .post-row small { color:var(--ink-3); }
   .danger { color:#fff; background:var(--pomegranate); border-color:var(--pomegranate); }
   textarea { min-height:140px; }
+  .tabs { display:flex; gap:1.75rem; border-bottom:1px solid var(--line); margin:.5rem 0 2.5rem; }
+  .tabs button { font:500 .92rem var(--font-body); background:none; border:0; border-bottom:2px solid transparent; padding:.7rem 0; color:var(--ink-3); cursor:pointer; margin-bottom:-1px; }
+  .tabs button[aria-selected="true"] { color:var(--ink); border-bottom-color:var(--ink); }
+  .tx { display:grid; gap:2.5rem; }
+  @media (min-width:900px) { .tx { grid-template-columns:200px minmax(0,1fr); } }
+  .tx__nav { display:flex; flex-direction:column; gap:.1rem; position:sticky; top:1rem; align-self:start; }
+  @media (max-width:899px) { .tx__nav { position:static; flex-direction:row; flex-wrap:wrap; gap:.25rem 1rem; } }
+  .tx__nav button { text-align:left; font:400 .92rem var(--font-body); background:none; border:0; padding:.35rem 0; color:var(--ink-2); cursor:pointer; display:flex; justify-content:space-between; gap:1rem; }
+  .tx__nav button[aria-current="true"] { color:var(--ink); font-weight:600; }
+  .tx__nav small { color:var(--ink-3); font-weight:400; }
+  .tx__bar { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; padding-bottom:1rem; border-bottom:1px solid var(--ink); margin-bottom:.5rem; position:sticky; top:0; background:var(--paper); z-index:2; padding-top:.5rem; }
+  .tx__bar h2 { margin:0 auto 0 0; font-size:1.6rem; }
+  .tx__bar input { font:inherit; font-size:.88rem; border:1px solid var(--line); background:var(--paper); color:var(--ink); padding:.5rem .7rem; min-width:200px; }
+  .tx__row { display:grid; gap:.75rem 1.5rem; padding:1.25rem 0; border-bottom:1px solid var(--line); }
+  @media (min-width:700px) { .tx__row { grid-template-columns:1fr 1fr; } }
+  .tx__key { grid-column:1 / -1; display:flex; align-items:baseline; gap:.75rem; font-size:.75rem; letter-spacing:.06em; color:var(--ink-3); }
+  .tx__key .dot { width:6px; height:6px; border-radius:50%; background:var(--terracotta); display:none; }
+  .tx__row.is-custom .tx__key .dot { display:inline-block; }
+  .tx__key button { margin-left:auto; font:inherit; background:none; border:0; color:var(--ink-3); text-decoration:underline; cursor:pointer; }
+  .tx__row label { font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3); display:block; margin-bottom:.3rem; }
+  .tx__row textarea { width:100%; min-height:0; font:inherit; font-size:.95rem; line-height:1.55; color:var(--ink); background:transparent; border:0; border-bottom:1px solid transparent; padding:.15rem 0; resize:none; overflow:hidden; }
+  .tx__row textarea:hover { border-bottom-color:var(--line); }
+  .tx__row textarea:focus { outline:none; border-bottom-color:var(--ink); }
+  .tx__row.is-dirty { background:linear-gradient(90deg, color-mix(in srgb,var(--gold) 14%,transparent), transparent 60%); }
+  .tx__empty { color:var(--ink-3); padding:2rem 0; }
 </style>
 </head>
 <body>
@@ -60,6 +85,25 @@
       <div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" required></div>
       <div><button class="btn btn--primary" type="submit">Sign in</button></div>
     </form>
+  </section>
+
+  <nav class="tabs" id="tabs" role="tablist" hidden>
+    <button type="button" role="tab" data-tab="app" aria-selected="true">Gallery</button>
+    <button type="button" role="tab" data-tab="texts" aria-selected="false">Texts</button>
+  </nav>
+
+  <section id="texts" hidden>
+    <div class="tx">
+      <nav class="tx__nav" id="tx-nav" aria-label="Sections"></nav>
+      <div>
+        <div class="tx__bar">
+          <h2 id="tx-title">Texts</h2>
+          <input type="search" id="tx-search" placeholder="Search all texts…" aria-label="Search texts">
+          <button class="btn btn--primary" type="button" id="tx-save" disabled>Save changes</button>
+        </div>
+        <div id="tx-rows"></div>
+      </div>
+    </div>
   </section>
 
   <section id="app" hidden>
@@ -112,6 +156,7 @@
   </section>
 </div>
 
+<script src="/assets/js/i18n.js"></script>
 <script>
 const $ = function (s, r) { return (r || document).querySelector(s); };
 const NAMES = { kz: "Kazakhstan", kg: "Kyrgyzstan", uz: "Uzbekistan", tj: "Tajikistan", tm: "Turkmenistan" };
@@ -167,7 +212,9 @@ async function boot() {
   if (inside && s.configured === false) {
     $("#warn").innerHTML += '<div class="msg msg--err">Supabase is not configured on the server, so posts cannot be saved yet.</div>';
   }
-  if (inside) loadPosts();
+  $("#tabs").hidden = !inside;
+  if (!inside) $("#texts").hidden = true;
+  if (inside) { loadPosts(); showTab(CURRENT_TAB); }
 }
 $("#login-form").addEventListener("submit", async function (e) {
   e.preventDefault();
@@ -320,6 +367,134 @@ function edit(p) {
   $("#form-title").textContent = "Editing: " + p.title_en; $("#save").textContent = "Save changes";
   drawPhotos(); window.scrollTo({ top: 0, behavior: "smooth" });
 }
+
+/* ---------- tabs ---------- */
+let CURRENT_TAB = "app";
+function showTab(name) {
+  CURRENT_TAB = name;
+  document.querySelectorAll("#tabs [data-tab]").forEach(function (b) {
+    const on = b.dataset.tab === name;
+    b.setAttribute("aria-selected", String(on));
+    $("#" + b.dataset.tab).hidden = !on;
+  });
+  if (name === "texts") loadTexts();
+}
+document.querySelectorAll("#tabs [data-tab]").forEach(function (b) {
+  b.addEventListener("click", function () { showTab(b.dataset.tab); });
+});
+
+/* ---------- texts ---------- */
+const SECTIONS = [
+  ["general", "General",       ["brand", "nav", "site"]],
+  ["home",    "Home",          ["home"]],
+  ["about",   "About",         ["about"]],
+  ["context", "Context",       ["ctx"]],
+  ["stories", "Stories",       ["stories", "essay"]],
+  ["themes",  "Themes & formats", ["theme", "format"]],
+  ["craft",   "What women made", ["craft"]],
+  ["gallery", "Gallery",       ["gallery"]],
+  ["share",   "Share your story", ["share"]],
+  ["res",     "Resources",     ["res"]],
+  ["footer",  "Footer",        ["footer"]],
+];
+const DEFAULTS = { en: Object.assign({}, I18N.en), uz: Object.assign({}, I18N.uz || {}) };
+let SAVED = { en: {}, uz: {} }, DIRTY = {}, TX_SECTION = "general", TX_LOADED = false;
+
+function sectionOf(key) {
+  const p = key.split(".")[0];
+  const s = SECTIONS.find(function (x) { return x[2].indexOf(p) !== -1; });
+  return s ? s[0] : "general";
+}
+function current(key, lang) {
+  if (DIRTY[key] && DIRTY[key][lang] != null) return DIRTY[key][lang];
+  if (SAVED[lang][key] != null) return SAVED[lang][key];
+  return DEFAULTS[lang][key] || "";
+}
+function isCustom(key) { return SAVED.en[key] != null || SAVED.uz[key] != null; }
+function label(key) { return key.split(".").slice(1).join(" · ").replace(/-/g, " ") || key; }
+
+async function loadTexts() {
+  if (TX_LOADED) return drawTexts();
+  const r = await api("GET", "/api/super/texts");
+  if (!r.ok) return show("err", errText(r.error));
+  SAVED = r.texts; TX_LOADED = true; drawTexts();
+}
+
+function grow(t) { t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; }
+
+function drawTexts() {
+  const q = $("#tx-search").value.trim().toLowerCase();
+  const keys = Object.keys(DEFAULTS.en);
+  // section list with counts
+  const nav = $("#tx-nav"); nav.innerHTML = "";
+  SECTIONS.forEach(function (s) {
+    const n = keys.filter(function (k) { return sectionOf(k) === s[0]; }).length;
+    if (!n) return;
+    const b = document.createElement("button"); b.type = "button";
+    b.innerHTML = esc(s[1]) + "<small>" + n + "</small>";
+    if (!q && s[0] === TX_SECTION) b.setAttribute("aria-current", "true");
+    b.addEventListener("click", function () { TX_SECTION = s[0]; $("#tx-search").value = ""; drawTexts(); window.scrollTo(0, 0); });
+    nav.appendChild(b);
+  });
+
+  const list = keys.filter(function (k) {
+    if (!q) return sectionOf(k) === TX_SECTION;
+    return k.toLowerCase().indexOf(q) !== -1 || current(k, "en").toLowerCase().indexOf(q) !== -1 || current(k, "uz").toLowerCase().indexOf(q) !== -1;
+  });
+  const sec = SECTIONS.find(function (s) { return s[0] === TX_SECTION; });
+  $("#tx-title").textContent = q ? list.length + " results" : sec[1];
+
+  const box = $("#tx-rows"); box.innerHTML = "";
+  if (!list.length) box.innerHTML = '<p class="tx__empty">Nothing matches.</p>';
+  list.forEach(function (key) {
+    const row = document.createElement("div");
+    row.className = "tx__row" + (isCustom(key) ? " is-custom" : "") + (DIRTY[key] ? " is-dirty" : "");
+    row.innerHTML = '<div class="tx__key"><span class="dot" title="Edited"></span><span>' + esc(label(key)) + "</span>" +
+      (isCustom(key) ? '<button type="button" data-reset>Restore original</button>' : "") + "</div>" +
+      '<div><label>English</label><textarea rows="1" data-lang="en"></textarea></div>' +
+      '<div><label>O‘zbekcha</label><textarea rows="1" data-lang="uz"></textarea></div>';
+    row.querySelectorAll("textarea").forEach(function (t) {
+      t.value = current(key, t.dataset.lang);
+      t.addEventListener("input", function () {
+        DIRTY[key] = DIRTY[key] || {};
+        DIRTY[key][t.dataset.lang] = t.value;
+        row.classList.add("is-dirty"); grow(t); syncSave();
+      });
+    });
+    const reset = row.querySelector("[data-reset]");
+    if (reset) reset.addEventListener("click", function () {
+      DIRTY[key] = { en: "", uz: "", reset: true };
+      row.querySelectorAll("textarea").forEach(function (t) { t.value = DEFAULTS[t.dataset.lang][key] || ""; grow(t); });
+      row.classList.add("is-dirty"); syncSave();
+    });
+    box.appendChild(row);
+    row.querySelectorAll("textarea").forEach(grow);
+  });
+}
+
+function syncSave() {
+  const n = Object.keys(DIRTY).length;
+  $("#tx-save").disabled = n === 0;
+  $("#tx-save").textContent = n ? "Save " + n + " change" + (n === 1 ? "" : "s") : "Save changes";
+}
+
+$("#tx-search").addEventListener("input", drawTexts);
+$("#tx-save").addEventListener("click", async function () {
+  const changes = Object.keys(DIRTY).map(function (key) {
+    const d = DIRTY[key];
+    if (d.reset) return { key: key, en: "", uz: "" };
+    const en = current(key, "en"), uz = current(key, "uz");
+    // store only what differs from the original, so untouched languages keep following it
+    return { key: key, en: en === (DEFAULTS.en[key] || "") ? "" : en, uz: uz === (DEFAULTS.uz[key] || "") ? "" : uz };
+  });
+  $("#tx-save").disabled = true;
+  const r = await api("PUT", "/api/super/texts", { changes: changes });
+  if (!r.ok) { syncSave(); return show("err", errText(r.error)); }
+  DIRTY = {}; TX_LOADED = false; syncSave();
+  show("ok", "Saved. The site shows the new text on its next page load.");
+  loadTexts();
+});
+window.addEventListener("beforeunload", function (e) { if (Object.keys(DIRTY).length) { e.preventDefault(); e.returnValue = ""; } });
 
 boot();
 </script>
