@@ -231,3 +231,12 @@ On an existing Supabase project, re-run `supabase/schema.sql` once: it adds the
 `gallery_posts` table and the public `gallery` storage bucket and leaves
 everything else as it is. Photos are resized in the browser to 2400px before
 upload, one per request, so they stay under serverless body limits.
+
+### Editing the site's text
+
+`/superadmin` → **Texts** lists every piece of text on the site, grouped by
+page section, with English and Uzbek side by side. Saved edits are stored in the
+`site_texts` table and override the defaults in `site/assets/js/i18n.js` on the
+next page load, with no redeploy. **Restore original** brings a default back.
+The contact email under General → `site.email` updates every mailto link.
+Re-run `supabase/schema.sql` once to create the table.

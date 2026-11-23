@@ -400,6 +400,42 @@ async function main() {
     assert.strictEqual(fake.storage.has("gallery/" + photoPath), false);
   });
 
+  console.log("\nsite texts");
+
+  await test("text edits need the super admin", async function () {
+    const res = await fetch(base + "/api/super/texts", { method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ changes: [{ key: "home.hero.cta1", en: "Hacked" }] }) });
+    assert.strictEqual(res.status, 401);
+  });
+
+  await test("a saved text reaches every page through config.js", async function () {
+    const res = await fetch(base + "/api/super/texts", { method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + SA },
+      body: JSON.stringify({ changes: [{ key: "home.hero.cta1", en: "Start reading", uz: "" }, { key: "bad key!", en: "x" }] }) });
+    const body = await res.json();
+    assert.strictEqual(body.ok, true);
+    assert.strictEqual(body.saved, 1, "the invalid key should be ignored");
+    const js = await (await fetch(base + "/assets/js/config.js")).text();
+    assert.ok(js.indexOf("Start reading") !== -1);
+  });
+
+  await test("saved text cannot break out of the script", async function () {
+    await fetch(base + "/api/super/texts", { method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + SA },
+      body: JSON.stringify({ changes: [{ key: "footer.draft", en: "</script><script>alert(1)</script>" }] }) });
+    const js = await (await fetch(base + "/assets/js/config.js")).text();
+    assert.ok(js.indexOf("</script>") === -1);
+  });
+
+  await test("restoring a text removes the override", async function () {
+    await fetch(base + "/api/super/texts", { method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + SA },
+      body: JSON.stringify({ changes: [{ key: "home.hero.cta1", en: "", uz: "" }, { key: "footer.draft", en: "", uz: "" }] }) });
+    assert.strictEqual(fake.db.site_texts.length, 0);
+    const js = await (await fetch(base + "/assets/js/config.js")).text();
+    assert.ok(js.indexOf("Start reading") === -1);
+  });
+
   console.log("\nthe site itself");
 
   for (const p of ["/", "/about.html", "/context.html", "/stories.html", "/gallery.html", "/share.html", "/resources.html", "/admin", "/superadmin"]) {

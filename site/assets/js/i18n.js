@@ -21,6 +21,7 @@ const I18N = {
     "nav.share": "Share your story",
     "nav.resources": "Resources",
     "nav.gallery": "Gallery",
+    "site.email": "hello@example.org",
     "gallery.eyebrow": "Five countries, seen up close",
     "gallery.title": "Gallery",
     "gallery.lede": "Photo essays and travel photographs from Kazakhstan, Kyrgyzstan, Tajikistan, Turkmenistan and Uzbekistan — streets, kitchens, mountains, markets, and the people in them.",

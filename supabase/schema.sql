@@ -137,3 +137,15 @@ on conflict (id) do update
   set public = true,
       file_size_limit = excluded.file_size_limit,
       allowed_mime_types = excluded.allowed_mime_types;
+
+-- ---------------------------------------------------------------- site texts
+-- Edits made in /superadmin → Texts. One row per i18n key; empty means default.
+
+create table if not exists public.site_texts (
+  id         text primary key,          -- the key in site/assets/js/i18n.js
+  en         text default '',
+  uz         text default '',
+  updated_at timestamptz not null default now()
+);
+alter table public.site_texts enable row level security;
+-- No policies: read and written only by the server.

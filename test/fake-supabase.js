@@ -11,7 +11,7 @@ const http = require("http");
 const crypto = require("crypto");
 
 function create() {
-  const db = { submissions: [], entries: [], gallery_posts: [] };
+  const db = { submissions: [], entries: [], gallery_posts: [], site_texts: [] };
   const storage = new Map();          // "bucket/path" -> Buffer
   const users = new Map();            // email -> { id, password }
   const tokens = new Map();           // access token -> email

@@ -26,6 +26,7 @@ const publisher = require("./lib/publish");
 const render = require("./lib/render");
 const store = require("./lib/store");
 const gallery = require("./lib/gallery");
+const texts = require("./lib/texts");
 const superadmin = require("./lib/superadmin");
 const supabase = require("./lib/supabase");
 const { SITE } = require("./lib/paths");
@@ -391,6 +392,22 @@ app.put("/api/super/gallery/:id", superadmin.requireSuper, async function (req, 
   }
 });
 
+app.get("/api/super/texts", superadmin.requireSuper, async function (req, res) {
+  res.set("Cache-Control", "no-store");
+  try { res.json({ ok: true, texts: await texts.all() }); }
+  catch (e) { res.status(500).json({ ok: false, error: "texts_failed" }); }
+});
+
+app.put("/api/super/texts", superadmin.requireSuper, async function (req, res) {
+  if (!supabase.configured()) return res.status(503).json({ ok: false, error: "not_configured" });
+  const changes = (req.body && Array.isArray(req.body.changes)) ? req.body.changes : [];
+  try { res.json(Object.assign({ ok: true }, await texts.save(changes))); }
+  catch (e) {
+    console.error("texts save failed:", e.message);
+    res.status(500).json({ ok: false, error: "save_failed" });
+  }
+});
+
 app.delete("/api/super/gallery/:id", superadmin.requireSuper, async function (req, res) {
   try {
     await gallery.remove(req.params.id);
@@ -422,13 +439,20 @@ app.get("/essays/:slug", async function (req, res, next) {
 
 // Generated rather than committed, so deployment keys live only in the
 // environment. The anon key is public by design; RLS is the protection.
-app.get("/assets/js/config.js", function (req, res) {
+// Also carries the text overrides saved from /superadmin, merged into the
+// I18N defaults (i18n.js loads first) before main.js applies them.
+app.get("/assets/js/config.js", async function (req, res) {
   res.type("application/javascript");
   res.set("Cache-Control", "no-store");
-  res.send("window.QURAMA_CONFIG = " + JSON.stringify({
+  let overrides = { en: {}, uz: {} };
+  try { overrides = await texts.all(); } catch (e) { console.error("texts failed:", e.message); }
+  const json = function (v) { return JSON.stringify(v).replace(/</g, "\\u003c"); };
+  res.send("window.QURAMA_CONFIG = " + json({
     supabaseUrl: supabase.URL || null,
     supabaseAnonKey: supabase.ANON_KEY || null,
-  }) + ";\n");
+  }) + ";\n" +
+  "window.QURAMA_TEXTS = " + json(overrides) + ";\n" +
+  "if (typeof I18N !== 'undefined') { for (var l in QURAMA_TEXTS) { if (I18N[l]) Object.assign(I18N[l], QURAMA_TEXTS[l]); } }\n");
 });
 
 

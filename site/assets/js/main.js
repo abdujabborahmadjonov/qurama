@@ -38,6 +38,15 @@
       });
     });
 
+    // The contact address is one editable value used by every mailto link.
+    const email = t("site.email", lang);
+    if (email && email !== "site.email") {
+      document.querySelectorAll('a[href^="mailto:"]').forEach(function (a) {
+        if (a.textContent.indexOf("@") !== -1) a.textContent = email;
+        a.setAttribute("href", "mailto:" + email);
+      });
+    }
+
     document.querySelectorAll("[data-lang-btn]").forEach(function (btn) {
       btn.setAttribute("aria-pressed", String(btn.getAttribute("data-lang-btn") === lang));
     });
