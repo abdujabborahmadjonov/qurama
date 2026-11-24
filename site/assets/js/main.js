@@ -5,6 +5,13 @@
 (function () {
   "use strict";
 
+  // Text edits saved in /superadmin → Texts (delivered by config.js).
+  if (window.QURAMA_TEXTS && typeof I18N !== "undefined") {
+    Object.keys(window.QURAMA_TEXTS).forEach(function (lang) {
+      if (I18N[lang]) Object.assign(I18N[lang], window.QURAMA_TEXTS[lang]);
+    });
+  }
+
   const STORAGE_KEY = "qurama.lang";
   const DEFAULT_LANG = "en";
 
@@ -83,7 +90,8 @@
     });
 
     // mark the current page in the nav
-    const here = location.pathname.split("/").pop() || "index.html";
+    let here = location.pathname.split("/").pop() || "index.html";
+    if (here.indexOf(".") === -1) here += ".html";   // /gallery → gallery.html
     document.querySelectorAll("#primary-nav a").forEach(function (a) {
       if (a.getAttribute("href") === here) a.setAttribute("aria-current", "page");
     });

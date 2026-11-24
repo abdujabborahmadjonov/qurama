@@ -15,7 +15,7 @@ async function all() {
   if (!configured()) return { en: {}, uz: {} };
   if (cache && Date.now() - cachedAt < TTL) return cache;
   const { data, error } = await admin().from("site_texts").select("id,en,uz").limit(2000);
-  if (error) throw error;
+  if (error) { cache = { en: {}, uz: {} }; cachedAt = Date.now(); throw error; }
   const out = { en: {}, uz: {} };
   (data || []).forEach(function (r) {
     if (r.en) out.en[r.id] = r.en;

@@ -394,6 +394,23 @@ async function main() {
     assert.strictEqual(res.status, 200);
   });
 
+  await test("editing a post deletes only the photos taken out of it", async function () {
+    const up = async function () {
+      const form = new FormData();
+      form.set("photo", new Blob([JPEG], { type: "image/jpeg" }), "x.jpg");
+      return (await (await fetch(base + "/api/super/photos", { method: "POST", body: form, headers: { Authorization: "Bearer " + SA } })).json()).path;
+    };
+    const extra = await up();
+    const body = { country: "uz", kind: "essay", titleEn: "Bukhara at dawn", photos: [{ path: photoPath }, { path: extra }] };
+    const auth = { "Content-Type": "application/json", Authorization: "Bearer " + SA };
+    await fetch(base + "/api/super/gallery/" + galleryId, { method: "PUT", headers: auth, body: JSON.stringify(body) });
+    body.photos = [{ path: photoPath }];
+    const res = await (await fetch(base + "/api/super/gallery/" + galleryId, { method: "PUT", headers: auth, body: JSON.stringify(body) })).json();
+    assert.strictEqual(res.ok, true);
+    assert.strictEqual(fake.storage.has("gallery/" + extra), false, "the removed photo should be deleted");
+    assert.strictEqual(fake.storage.has("gallery/" + photoPath), true, "the kept photo must stay");
+  });
+
   await test("deleting a post removes its photos", async function () {
     const res = await fetch(base + "/api/super/gallery/" + galleryId, { method: "DELETE", headers: { Authorization: "Bearer " + SA } });
     assert.strictEqual((await res.json()).ok, true);
@@ -425,6 +442,16 @@ async function main() {
       body: JSON.stringify({ changes: [{ key: "footer.draft", en: "</script><script>alert(1)</script>" }] }) });
     const js = await (await fetch(base + "/assets/js/config.js")).text();
     assert.ok(js.indexOf("</script>") === -1);
+  });
+
+  await test("essay pages load config.js before main.js, so text edits apply there too", async function () {
+    const entry = fake.db.entries[0];
+    assert.ok(entry, "needs a published entry");
+    const html = await (await fetch(base + "/essays/" + entry.slug)).text();
+    const cfg = html.indexOf("assets/js/config.js"), main = html.indexOf("assets/js/main.js");
+    assert.ok(cfg !== -1 && main > cfg);
+    const mainJs = await (await fetch(base + "/assets/js/main.js")).text();
+    assert.ok(mainJs.indexOf("QURAMA_TEXTS") !== -1, "main.js must merge the overrides");
   });
 
   await test("restoring a text removes the override", async function () {

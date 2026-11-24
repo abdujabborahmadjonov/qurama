@@ -151,7 +151,7 @@ app.post("/api/submissions", function (req, res) {
 
 /* ------------------------------------------------------------------ admin -- */
 
-app.use(express.json({ limit: "256kb" }));
+app.use(express.json({ limit: "1mb" }));
 
 app.get("/admin", function (req, res) {
   res.set("Cache-Control", "no-store");
@@ -383,9 +383,12 @@ app.put("/api/super/gallery/:id", superadmin.requireSuper, async function (req, 
   try {
     const before = await gallery.get(req.params.id);
     if (!before) return res.status(404).json({ ok: false, error: "not_found" });
+    const saved = await gallery.save(req.params.id, f.row);
+    // Only after the post no longer points at them, so a failed save loses nothing.
     const keep = new Set(f.row.photos.map(function (p) { return p.path; }));
-    await gallery.removeImages(before.photos.map(function (p) { return p.path; }).filter(function (p) { return !keep.has(p); }));
-    res.json({ ok: true, post: await gallery.save(req.params.id, f.row) });
+    const dropped = before.photos.map(function (p) { return p.path; }).filter(function (p) { return !keep.has(p); });
+    try { await gallery.removeImages(dropped); } catch (e) { console.error("photo cleanup failed:", e.message); }
+    res.json({ ok: true, post: saved });
   } catch (e) {
     console.error("gallery update failed:", e.message);
     res.status(500).json({ ok: false, error: "save_failed" });
@@ -439,8 +442,8 @@ app.get("/essays/:slug", async function (req, res, next) {
 
 // Generated rather than committed, so deployment keys live only in the
 // environment. The anon key is public by design; RLS is the protection.
-// Also carries the text overrides saved from /superadmin, merged into the
-// I18N defaults (i18n.js loads first) before main.js applies them.
+// Also carries the text overrides saved from /superadmin; main.js merges them
+// into the I18N defaults, so the order of the two script tags does not matter.
 app.get("/assets/js/config.js", async function (req, res) {
   res.type("application/javascript");
   res.set("Cache-Control", "no-store");
@@ -451,8 +454,7 @@ app.get("/assets/js/config.js", async function (req, res) {
     supabaseUrl: supabase.URL || null,
     supabaseAnonKey: supabase.ANON_KEY || null,
   }) + ";\n" +
-  "window.QURAMA_TEXTS = " + json(overrides) + ";\n" +
-  "if (typeof I18N !== 'undefined') { for (var l in QURAMA_TEXTS) { if (I18N[l]) Object.assign(I18N[l], QURAMA_TEXTS[l]); } }\n");
+  "window.QURAMA_TEXTS = " + json(overrides) + ";\n");
 });
 
 
